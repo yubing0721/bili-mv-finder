@@ -1,0 +1,49 @@
+{
+  "name": "bili-mv-finder-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "歌单找 MV · Windows 桌面版（Electron）",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --x64",
+    "dist:portable": "electron-builder --win portable --x64"
+  },
+  "devDependencies": {
+    "electron": "^44.6.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.bilimvfinder.desktop",
+    "productName": "歌单找MV",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": ["main.js", "package.json"],
+    "extraResources": [
+      {
+        "from": "../server",
+        "to": "server",
+        "filter": ["**/*", "!**/.cache/**", "!**/_*.log", "!**/_*.err"]
+      }
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "歌单找MV"
+    },
+    "portable": {
+      "artifactName": "歌单找MV-便携版-${version}.exe"
+    }
+  }
+}

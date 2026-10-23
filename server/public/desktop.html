@@ -1,0 +1,969 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- B站 图床防盗链：带本地地址的 Referer 会 403，不带则正常返回 -->
+    <meta name="referrer" content="no-referrer" />
+    <title>歌单找 MV · 桌面版</title>
+    <style>
+      :root {
+        --bg: #0e0f13;
+        --bg-2: #14161c;
+        --panel: #191c24;
+        --card: #20242e;
+        --card-hi: #272c38;
+        --border: #2b3040;
+        --text: #f0f2f7;
+        --dim: #a0a8b8;
+        --faint: #6b7383;
+        --primary: #fb7299;
+        --primary-soft: rgba(251, 114, 153, 0.15);
+        --accent: #23ade5;
+        --accent-soft: rgba(35, 173, 229, 0.15);
+        --success: #3dd68c;
+        --success-soft: rgba(61, 214, 140, 0.14);
+        --warn: #f5a623;
+        --warn-soft: rgba(245, 166, 35, 0.14);
+        --danger: #f5544e;
+        --danger-soft: rgba(245, 84, 78, 0.14);
+        --radius: 10px;
+        --row-h: 62px;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; overflow: hidden; }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font: 13.5px/1.55 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        height: 100vh;
+      }
+      ::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #333a4a; border-radius: 6px; border: 2px solid var(--bg); }
+      ::-webkit-scrollbar-thumb:hover { background: #414a5e; }
+
+      /* ══════════════ 顶栏 ══════════════ */
+      header {
+        display: flex; align-items: center; gap: 12px;
+        padding: 11px 16px;
+        background: var(--bg-2);
+        border-bottom: 1px solid var(--border);
+      }
+      .logo {
+        width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0;
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        display: grid; place-items: center; font-size: 15px;
+      }
+      .brand { font-size: 14.5px; font-weight: 700; white-space: nowrap; }
+      .brand small { display: block; font-size: 10.5px; color: var(--faint); font-weight: 500; }
+      .sep { width: 1px; height: 24px; background: var(--border); }
+
+      .search { display: flex; gap: 8px; flex: 1; min-width: 0; max-width: 620px; }
+      input[type=text], select, textarea {
+        background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+        color: var(--text); font: inherit; padding: 7px 11px; outline: none; min-width: 0;
+      }
+      input[type=text]:focus, select:focus, textarea:focus { border-color: var(--primary); }
+      input::placeholder { color: var(--faint); }
+      .search input { flex: 1; }
+      button {
+        background: var(--card); color: var(--text); border: 1px solid var(--border);
+        border-radius: 8px; padding: 7px 13px; font: inherit; font-weight: 600;
+        cursor: pointer; white-space: nowrap; transition: background .12s, transform .06s;
+      }
+      button:hover { background: var(--card-hi); }
+      button:active { transform: scale(.975); }
+      button:disabled { opacity: .4; cursor: not-allowed; }
+      button.primary { background: var(--primary); border-color: var(--primary); color: #171018; }
+      button.primary:hover { background: #ff85a8; }
+      button.ghost { background: transparent; border-color: transparent; color: var(--dim); }
+      button.ghost:hover { background: var(--card); color: var(--text); }
+      button.mini { padding: 4px 9px; font-size: 11.5px; border-radius: 6px; }
+
+      .right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+      .conn { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--dim); white-space: nowrap; }
+      .conn i { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); display: block; }
+      .conn.ok i { background: var(--success); box-shadow: 0 0 7px var(--success); }
+      .conn.fail i { background: var(--danger); }
+
+      /* ══════════════ 主体：主从两栏 ══════════════ */
+      main { display: grid; grid-template-columns: 392px 1fr; min-height: 0; }
+      .pane { min-height: 0; display: flex; flex-direction: column; }
+      .pane.left { border-right: 1px solid var(--border); background: var(--bg-2); }
+
+      .pane-bar {
+        display: flex; align-items: center; gap: 8px;
+        padding: 8px 12px; border-bottom: 1px solid var(--border);
+        font-size: 11.5px; color: var(--dim); flex-shrink: 0;
+      }
+      .pane-bar .title { font-weight: 700; color: var(--text); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .chips { display: flex; gap: 4px; margin-left: auto; }
+      .chip {
+        font-size: 11px; padding: 3px 8px; border-radius: 99px; cursor: pointer;
+        border: 1px solid transparent; color: var(--faint); background: transparent; font-weight: 600;
+      }
+      .chip:hover { color: var(--dim); background: var(--card); }
+      .chip.on { color: var(--text); background: var(--card); border-color: var(--border); }
+
+      .scroll { overflow-y: auto; flex: 1; min-height: 0; }
+
+      /* ---------- 左：歌曲列表 ---------- */
+      .song {
+        display: grid; grid-template-columns: 30px 1fr auto; gap: 9px;
+        align-items: center; padding: 8px 12px; min-height: var(--row-h);
+        border-bottom: 1px solid rgba(43, 48, 64, .5); cursor: pointer;
+        border-left: 3px solid transparent;
+      }
+      .song:hover { background: var(--panel); }
+      .song.on { background: var(--primary-soft); border-left-color: var(--primary); }
+      .song .no { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; text-align: right; }
+      .song .t { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .song .a { font-size: 11px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
+      .song .m { font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+      .song .m.bi { color: var(--success); }
+      .song .r { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+      .dot { width: 7px; height: 7px; border-radius: 50%; }
+      .lang { font-size: 9.5px; font-weight: 800; padding: 1px 5px; border-radius: 99px; }
+      .pending { color: var(--faint); font-size: 11px; }
+      .spin { width: 11px; height: 11px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: sp .7s linear infinite; }
+      @keyframes sp { to { transform: rotate(360deg); } }
+
+      /* ---------- 右：详情 ---------- */
+      .detail { padding: 16px 20px 28px; }
+      .empty-hint { display: grid; place-items: center; height: 100%; color: var(--faint); text-align: center; gap: 8px; }
+      .empty-hint .big { font-size: 34px; opacity: .5; }
+      .empty-hint kbd {
+        background: var(--card); border: 1px solid var(--border); border-bottom-width: 2px;
+        border-radius: 5px; padding: 1px 6px; font-size: 11px; font-family: inherit; color: var(--dim);
+      }
+
+      .d-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+      .d-title { font-size: 20px; font-weight: 800; letter-spacing: .2px; }
+      .d-sub { color: var(--faint); font-size: 12.5px; margin-top: 3px; }
+      .badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+      .badge { font-size: 10.5px; font-weight: 800; padding: 3px 8px; border-radius: 99px; }
+
+      .cand { display: flex; gap: 13px; padding: 11px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 9px; cursor: pointer; }
+      .cand:hover { background: var(--card); border-color: #39405a; }
+      .cand.best { border-color: rgba(251, 114, 153, .5); background: linear-gradient(180deg, rgba(251,114,153,.07), transparent); }
+      .cand img { width: 152px; height: 86px; object-fit: cover; border-radius: 7px; background: var(--card); flex-shrink: 0; }
+      .cand .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+      .cand .ct { font-size: 13.5px; font-weight: 600; line-height: 1.4; }
+      .cand .cm { font-size: 11.5px; color: var(--faint); display: flex; gap: 8px; flex-wrap: wrap; }
+      .cand .score { margin-left: auto; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+      .cand .acts { display: flex; gap: 6px; margin-top: auto; }
+
+      .sect { margin-top: 18px; }
+      .sect > h3 { font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; margin: 0 0 8px; font-weight: 800; }
+      .reasons { display: flex; flex-wrap: wrap; gap: 6px; }
+      .reason { font-size: 11.5px; background: var(--card); border: 1px solid var(--border); border-radius: 7px; padding: 4px 9px; color: var(--dim); }
+      .reason.neg { color: var(--danger); border-color: rgba(245,84,78,.3); }
+      .reason.pos { color: var(--success); border-color: rgba(61,214,140,.3); }
+
+      .reseach { display: flex; gap: 8px; margin-top: 8px; }
+      .reseach input { flex: 1; }
+
+      .kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 18px; }
+      .kv .k { font-size: 10.5px; color: var(--faint); font-weight: 700; }
+      .kv .v { font-size: 12.5px; word-break: break-all; }
+      pre.desc { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 11.5px; color: var(--dim); white-space: pre-wrap; max-height: 130px; overflow: auto; margin: 0; font-family: inherit; }
+
+      /* ---------- 底栏 ---------- */
+      footer {
+        display: flex; align-items: center; gap: 14px;
+        padding: 7px 16px; background: var(--bg-2); border-top: 1px solid var(--border);
+        font-size: 11.5px; color: var(--faint);
+      }
+      .stat b { color: var(--text); font-weight: 700; }
+      .stat.bi b { color: var(--success); }
+      .prog { flex: 1; max-width: 260px; height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; }
+      .prog > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: width .3s; }
+
+      /* ---------- 弹窗 ---------- */
+      .modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; place-items: center; z-index: 50; }
+      .modal.on { display: grid; }
+      .modal .box { background: var(--bg-2); border: 1px solid var(--border); border-radius: 14px; padding: 20px; width: 460px; max-width: 92vw; }
+      .modal h2 { margin: 0 0 14px; font-size: 15px; }
+      .field { margin-bottom: 14px; }
+      .field label { display: block; font-size: 11.5px; color: var(--dim); margin-bottom: 5px; font-weight: 700; }
+      .field input[type=text] { width: 100%; }
+      .field .hint { font-size: 11px; color: var(--faint); margin-top: 5px; line-height: 1.5; }
+      .check { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--dim); cursor: pointer; }
+      .check input { width: 16px; height: 16px; accent-color: var(--primary); }
+      .modal .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+
+      .toast {
+        position: fixed; left: 50%; bottom: 46px; transform: translateX(-50%) translateY(10px);
+        background: #22262f; border: 1px solid var(--border); border-radius: 99px;
+        padding: 9px 20px; font-size: 12.5px; font-weight: 600; opacity: 0; pointer-events: none;
+        transition: opacity .18s, transform .18s; z-index: 90;
+      }
+      .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+      a { color: var(--accent); }
+
+      /* ---------- 历史 ---------- */
+      .modal .box.wide { width: 620px; }
+      #histQ { width: 100%; margin-bottom: 10px; }
+      .hist-list { max-height: 56vh; overflow-y: auto; margin: 0 -6px; }
+      .hist { display: flex; align-items: center; gap: 11px; padding: 8px 6px; border-radius: 8px; cursor: pointer; text-align: left; }
+      .hist:hover { background: var(--card); }
+      .hist img { width: 44px; height: 44px; border-radius: 7px; object-fit: cover; background: var(--card); flex-shrink: 0; }
+      .hist .hb { flex: 1; min-width: 0; }
+      .hist .hn { font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .hist .hm { font-size: 11px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+      .hist .hm b { color: var(--success); font-weight: 600; }
+      .hist .ha { display: flex; gap: 4px; opacity: 0; transition: opacity .12s; }
+      .hist:hover .ha { opacity: 1; }
+      .hist-empty { color: var(--faint); text-align: center; padding: 26px 0; font-size: 12.5px; }
+      #recent { width: 360px; max-width: 80%; margin-top: 6px; }
+      #recent .hist { padding: 6px; }
+      #recent .hist img { width: 34px; height: 34px; }
+      #recent h4 { margin: 0 0 4px; font-size: 11px; color: var(--faint); font-weight: 700; text-align: left; }
+    </style>
+  </head>
+  <body>
+    <!-- ══════ 顶栏 ══════ -->
+    <header>
+      <div class="logo">🎬</div>
+      <div class="brand">歌单找 MV<small>网易云 → B站 · 外语歌优先双语字幕</small></div>
+      <div class="sep"></div>
+
+      <div class="search">
+        <input type="text" id="input" placeholder="粘贴网易云歌单链接 / 163cn.tv 短链 / 数字 ID" autocomplete="off" spellcheck="false" />
+        <button class="primary" id="go">开始匹配</button>
+        <button id="stop" style="display:none">停止</button>
+      </div>
+
+      <div class="right">
+        <div class="conn" id="conn"><i></i><span id="connText">检测中…</span></div>
+        <button class="ghost mini" id="openHistory" title="看过的歌单（Ctrl+H）">🕘 历史</button>
+        <button class="ghost mini" id="openSettings" title="设置">⚙ 设置</button>
+      </div>
+    </header>
+
+    <!-- ══════ 主体 ══════ -->
+    <main>
+      <section class="pane left">
+        <div class="pane-bar">
+          <span class="title" id="plName">还没有歌单</span>
+          <div class="chips" id="filters">
+            <span class="chip on" data-f="all">全部</span>
+            <span class="chip" data-f="high">很确定</span>
+            <span class="chip" data-f="bi">双语</span>
+            <span class="chip" data-f="none">未找到</span>
+          </div>
+        </div>
+        <div class="scroll" id="songList"></div>
+      </section>
+
+      <section class="pane">
+        <div class="pane-bar">
+          <span class="title" id="detailTitle">候选详情</span>
+          <div class="chips" id="detailTools" style="display:none">
+            <span class="chip" id="copyOne">复制此条</span>
+            <span class="chip" id="exportAll">导出全部</span>
+          </div>
+        </div>
+        <div class="scroll" id="detail">
+          <div class="empty-hint">
+            <div class="big">🎧</div>
+            <div>粘贴一个网易云歌单，点「开始匹配」</div>
+            <div style="font-size:11.5px;line-height:1.9">
+              快捷键：<kbd>↑</kbd><kbd>↓</kbd> 切换歌曲 · <kbd>Enter</kbd> 打开最佳候选<br />
+              <kbd>/</kbd> 聚焦输入框 · <kbd>Ctrl</kbd>+<kbd>E</kbd> 导出结果 · <kbd>Ctrl</kbd>+<kbd>H</kbd> 看过的歌单
+            </div>
+            <div style="font-size:11.5px">试试 <a href="#" data-sample="3778678">热歌榜</a> 或
+              <a href="#" data-sample="71385702">ACG 榜</a>（日语歌多，能看出双语效果）</div>
+            <div id="recent"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ══════ 底栏 ══════ -->
+    <footer>
+      <span class="stat">结果 <b id="stTotal">0</b></span>
+      <span class="stat">已匹配 <b id="stDone">0</b></span>
+      <span class="stat bi">命中双语 <b id="stBi">0</b></span>
+      <span class="stat">用时 <b id="stMs">—</b></span>
+      <div class="prog"><i id="progBar"></i></div>
+      <span id="stMsg" style="margin-left:auto"></span>
+    </footer>
+
+    <!-- ══════ 设置弹窗 ══════ -->
+    <div class="modal" id="settings">
+      <div class="box">
+        <h2>设置</h2>
+        <div class="field">
+          <label>后端地址</label>
+          <input type="text" id="serverUrl" placeholder="http://127.0.0.1:8787" />
+          <div class="hint">桌面版通常由启动器自动带上地址；手动打开网页时才需要填。</div>
+        </div>
+        <div class="field">
+          <label>每批匹配数量</label>
+          <select id="pageSize">
+            <option>10</option><option selected>20</option><option>30</option><option>50</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="check"><input type="checkbox" id="preferBilingual" checked /> 外语歌优先双语字幕</label>
+          <div class="hint">关闭后纯粹按「最像官方 MV」排序，双语只是很弱的平局决胜因素。</div>
+        </div>
+        <div class="row">
+          <button class="ghost" id="clearCache">清空服务端缓存</button>
+          <button class="primary" id="closeSettings">完成</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- ══════ 历史弹窗 ══════ -->
+    <div class="modal" id="history">
+      <div class="box wide">
+        <h2>看过的歌单 <span id="histCount" style="color:var(--faint);font-weight:500;font-size:12px"></span></h2>
+        <input type="text" id="histQ" placeholder="搜索歌单名 / 创建者 / ID" autocomplete="off" spellcheck="false" />
+        <div class="hist-list" id="histList"></div>
+        <div class="row">
+          <button class="ghost" id="histClear">清空历史</button>
+          <button class="primary" id="histClose">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      /* ═══════════════════════════════════════════════════════════
+         工具
+         ═══════════════════════════════════════════════════════════ */
+      const $ = (id) => document.getElementById(id);
+      const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      const fmtCount = (n) => { n = Number(n) || 0; return n >= 1e8 ? (n / 1e8).toFixed(1) + '亿' : n >= 1e4 ? (n / 1e4).toFixed(1) + '万' : String(n); };
+      const fmtDur = (s) => { if (s == null) return '--:--'; s = Math.round(s); const m = Math.floor(s / 60), x = s % 60; return m + ':' + String(x).padStart(2, '0'); };
+      const fmtDate = (t) => { if (!t) return '—'; const d = new Date(t * 1000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
+      const CONF = {
+        high: { l: '很确定', c: 'var(--success)', b: 'var(--success-soft)' },
+        medium: { l: '可能对', c: 'var(--warn)', b: 'var(--warn-soft)' },
+        low: { l: '不太确定', c: 'var(--danger)', b: 'var(--danger-soft)' },
+        error: { l: '出错', c: 'var(--danger)', b: 'var(--danger-soft)' },
+        none: { l: '没找到', c: 'var(--faint)', b: 'rgba(107,115,131,.15)' },
+      };
+      const LANG = { zh: ['#ff8a8a', 'rgba(255,138,138,.15)'], ja: ['#7ac6ff', 'rgba(122,198,255,.15)'], ko: ['#b79bff', 'rgba(183,155,255,.15)'], en: ['#7ee3b0', 'rgba(126,227,176,.15)'] };
+      const BD = { title: '歌名', artist: '歌手', duration: '时长', mv: 'MV', bilingual: '双语', play: '播放', category: '分区', officialUp: '官方' };
+
+      /** 桌面版固定的后端地址：同源即可，无需用户配置 */
+      const BASE = location.origin.startsWith('http') ? '' : 'http://127.0.0.1:8787';
+      const api = (p) => BASE + p;
+
+      const toast = (m) => { const t = $('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 1900); };
+
+      /* ═══════════════════════════════════════════════════════════
+         状态
+         ═══════════════════════════════════════════════════════════ */
+      const S = {
+        playlist: null,
+        /** index → 匹配结果 */
+        results: new Map(),
+        /** 左栏顺序的 index 列表 */
+        order: [],
+        selected: null,
+        /** 用户是否手动点过左栏（点过之后就不再自动改选中项） */
+        userPicked: false,
+        filter: 'all',
+        running: false,
+        es: null,
+        /** 本次匹配实际使用的双语偏好；从历史打开时沿用快照当时的设置 */
+        runPrefer: true,
+        prefs: { pageSize: 20, preferBilingual: true },
+      };
+      try { Object.assign(S.prefs, JSON.parse(localStorage.getItem('bmf:prefs') || '{}')); } catch {}
+      const savePrefs = () => localStorage.setItem('bmf:prefs', JSON.stringify(S.prefs));
+
+      /* ═══════════════════════════════════════════════════════════
+         健康检查
+         ═══════════════════════════════════════════════════════════ */
+      async function health() {
+        const c = $('conn');
+        try {
+          const j = await (await fetch(api('/api/health'))).json();
+          c.className = 'conn ok';
+          $('connText').textContent = j.bili?.hasBuvid3 ? '后端已连接 · B站 会话正常' : '后端已连接';
+          $('go').disabled = false;
+          if (!S.playlist) renderRecent();
+        } catch {
+          c.className = 'conn fail';
+          $('connText').textContent = '连不上后端';
+        }
+      }
+      health();
+      setInterval(health, 30000);
+
+      /* ═══════════════════════════════════════════════════════════
+         匹配流程
+         ═══════════════════════════════════════════════════════════ */
+      function resetAll() {
+        if (S.es) { S.es.close(); S.es = null; }
+        S.results.clear(); S.order = []; S.selected = null; S.playlist = null; S.userPicked = false;
+        $('songList').innerHTML = ''; $('plName').textContent = '正在读取歌单…';
+        $('detailTitle').textContent = '候选详情';
+        $('detailTools').style.display = 'none';
+        renderDetail();
+        $('stTotal').textContent = '0'; $('stDone').textContent = '0'; $('stBi').textContent = '0';
+        $('stMs').textContent = '—'; $('progBar').style.width = '0'; $('stMsg').textContent = '';
+        document.querySelectorAll('footer .cont').forEach((b) => b.remove());
+      }
+
+      function start(input) {
+        const v = (input ?? $('input').value).trim();
+        if (!v) { toast('请先粘贴歌单链接或 ID'); return; }
+        resetAll();
+        S.running = true;
+        S.runPrefer = S.prefs.preferBilingual;
+        $('go').style.display = 'none';
+        $('stop').style.display = '';
+        $('stMsg').textContent = '正在匹配…';
+        stream(new URLSearchParams({
+          id: v,
+          limit: String(S.prefs.pageSize),
+          offset: '0',
+          preferBilingual: S.runPrefer ? '1' : '0',
+        }));
+      }
+
+      function showContinue() {
+        document.querySelectorAll('footer .cont').forEach((b) => b.remove());
+        const btn = document.createElement('button');
+        btn.className = 'mini cont';
+        btn.textContent = '继续匹配';
+        btn.onclick = () => {
+          btn.remove();
+          S.running = true;
+          $('go').style.display = 'none';
+          $('stop').style.display = '';
+          stream(new URLSearchParams({
+            id: S.playlist.id, limit: String(S.prefs.pageSize), offset: String(S.results.size),
+            preferBilingual: S.runPrefer ? '1' : '0',
+          }));
+        };
+        $('stMsg').after(btn);
+      }
+
+      function stream(qs) {
+        if (S.es) S.es.close();
+        const es = new EventSource(api('/api/match/stream?' + qs.toString()));
+        S.es = es;
+
+        es.addEventListener('playlist', (e) => {
+          const pl = JSON.parse(e.data);
+          S.playlist = pl;
+          S.order = pl.tracks.map((_, i) => i);
+          $('plName').textContent = `《${pl.name}》 · ${pl.trackCount} 首`;
+          $('stTotal').textContent = String(pl.tracks.length);
+          renderList();
+        });
+
+        es.addEventListener('song', (e) => {
+          const r = JSON.parse(e.data);
+          S.results.set(r.index, r);
+          const prevSelected = S.selected;
+          // 自动选中：优先「列表第一首」，因为它顺序可预期。
+          // 不能简单地用「最先返回的那首」—— 后端是并发匹配的，
+          // 谁先回来是随机的，右栏内容会毫无规律地跳。
+          if (!S.userPicked) {
+            if (r.index === 0) S.selected = 0;
+            else if (S.selected === null) S.selected = r.index;
+          }
+          renderList();
+          // 右栏整体重绘会重建封面 <img>，无关歌曲返回时不重绘，否则匹配期间封面一直加载不出来
+          if (S.selected !== prevSelected || r.index === S.selected) renderDetail();
+          updateStats();
+        });
+
+        es.addEventListener('progress', (e) => {
+          const p = JSON.parse(e.data);
+          $('progBar').style.width = (p.total ? (p.done / p.total) * 100 : 0) + '%';
+          $('stMsg').textContent = `匹配中 ${p.done}/${p.total}`;
+        });
+
+        es.addEventListener('done', (e) => {
+          const d = JSON.parse(e.data);
+          $('stMs').textContent = (d.elapsedMs / 1000).toFixed(1) + 's';
+          $('progBar').style.width = '100%';
+          $('stMsg').textContent = d.hasMore ? '还有更多（可继续匹配）' : '全部完成';
+          if (d.hasMore) showContinue();
+          finish();
+        });
+
+        es.addEventListener('error', (e) => {
+          let msg = '连接中断';
+          try { msg = JSON.parse(e.data).message; } catch {}
+          $('stMsg').textContent = '出错：' + msg;
+          toast(msg);
+          finish();
+        });
+
+        // 网络层断开（服务端关闭流）时 EventSource 也会触发 error
+        es.onerror = () => { if (es.readyState === EventSource.CLOSED) finish(); };
+      }
+
+      function finish() {
+        S.running = false;
+        if (S.es) { S.es.close(); S.es = null; }
+        $('go').style.display = '';
+        $('stop').style.display = 'none';
+        renderList();
+      }
+
+      $('go').onclick = () => start();
+      $('stop').onclick = () => { finish(); $('stMsg').textContent = '已停止'; };
+      $('input').addEventListener('keydown', (e) => { if (e.key === 'Enter') start(); });
+      document.querySelectorAll('[data-sample]').forEach((a) => {
+        a.onclick = (e) => { e.preventDefault(); $('input').value = a.dataset.sample; start(a.dataset.sample); };
+      });
+
+      /* ═══════════════════════════════════════════════════════════
+         左栏渲染
+         ═══════════════════════════════════════════════════════════ */
+      function visibleIndices() {
+        if (!S.playlist) return [];
+        return S.order.filter((i) => {
+          const r = S.results.get(i);
+          switch (S.filter) {
+            case 'high': return r?.confidence === 'high';
+            case 'bi': return r?.bilingualNeeded && (r.best?.bilingualHit ?? 0) >= 0.6;
+            case 'none': return !r || !r.best;
+            default: return true;
+          }
+        });
+      }
+
+      function renderList() {
+        const box = $('songList');
+        if (!S.playlist) { box.innerHTML = ''; return; }
+        const idxs = visibleIndices();
+        box.innerHTML = idxs.map((i) => {
+          const song = S.playlist.tracks[i];
+          const r = S.results.get(i);
+          const lc = LANG[r?.lang ?? song.lang] ?? ['var(--dim)', 'rgba(160,168,184,.15)'];
+          const conf = CONF[r?.confidence ?? 'none'];
+          const bi = r?.bilingualNeeded && (r.best?.bilingualHit ?? 0) >= 0.6;
+
+          const right = r
+            ? `<span class="lang" style="color:${lc[0]};background:${lc[1]}">${esc(r.langLabel)}</span>
+               <span class="dot" style="background:${conf.c}" title="${conf.l}"></span>`
+            : (S.running ? '<div class="spin"></div>' : '<span class="pending">—</span>');
+
+          const matched = r?.best
+            ? `<div class="m ${bi ? 'bi' : ''}" title="${esc(r.best.title)}">${bi ? '✓ ' : ''}${esc(r.best.title)}</div>`
+            : (r ? '<div class="m" style="color:var(--danger)">未找到可信候选</div>' : '');
+
+          return `<div class="song ${S.selected === i ? 'on' : ''}" data-i="${i}">
+            <div class="no">${String(i + 1).padStart(2, '0')}</div>
+            <div style="min-width:0">
+              <div class="t" title="${esc(song.title)}">${esc(song.title)}</div>
+              <div class="a">${esc(song.artistText)}${song.durationSec ? ' · ' + fmtDur(song.durationSec) : ''}</div>
+              ${matched}
+            </div>
+            <div class="r">${right}</div>
+          </div>`;
+        }).join('');
+
+        box.querySelectorAll('.song').forEach((el) => {
+          el.onclick = () => {
+            S.userPicked = true;
+            S.selected = Number(el.dataset.i);
+            renderList();
+            renderDetail();
+          };
+        });
+      }
+
+      $('filters').onclick = (e) => {
+        const c = e.target.closest('.chip'); if (!c) return;
+        S.filter = c.dataset.f;
+        $('filters').querySelectorAll('.chip').forEach((x) => x.classList.toggle('on', x === c));
+        renderList();
+      };
+
+      /* ═══════════════════════════════════════════════════════════
+         右栏渲染
+         ═══════════════════════════════════════════════════════════ */
+      function candHtml(c, rank, isBest, songIdx) {
+        const bi = c.bilingualHit >= 0.6, partBi = c.bilingualHit > 0 && !bi;
+        const badges = [
+          bi ? `<span class="badge" style="color:var(--success);background:var(--success-soft)">✓ 双语字幕</span>` : '',
+          partBi ? `<span class="badge" style="color:var(--warn);background:var(--warn-soft)">有字幕</span>` : '',
+          c.mvHit >= 0.9 ? `<span class="badge" style="color:var(--accent);background:var(--accent-soft)">MV</span>` : '',
+          ...(c.negativeTags || []).slice(0, 3).map((t) => `<span class="badge" style="color:var(--danger);background:var(--danger-soft)">${esc(t)}</span>`),
+        ].join('');
+        const bd = Object.entries(c.breakdown || {}).filter(([k, v]) => BD[k] && v !== 0)
+          .map(([k, v]) => `${BD[k]} <b style="color:${v < 0 ? 'var(--danger)' : 'var(--dim)'}">${v > 0 ? '+' + v.toFixed(0) : v.toFixed(0)}</b>`).join('　');
+        return `<div class="cand ${isBest ? 'best' : ''}" data-bv="${esc(c.bvid)}" data-idx="${songIdx}">
+          <img loading="lazy" src="${esc(c.cover)}" alt="" />
+          <div class="body">
+            <div class="ct">${rank > 1 ? `<span style="color:var(--faint)">#${rank} </span>` : ''}${esc(c.title)}</div>
+            <div class="cm">
+              <span>${esc(c.author)}</span><span>${fmtCount(c.play)} 播放</span><span>${esc(c.durationText)}</span>
+              <span>${fmtDate(c.pubdate)}</span>
+              <span class="score">匹配分 ${c.score.toFixed(0)}</span>
+            </div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap">${badges}</div>
+            ${bd ? `<div style="font-size:10.5px;color:var(--faint)">${bd}</div>` : ''}
+            <div class="acts">
+              <button class="mini primary" data-open="${esc(c.url)}">▶ 在 B站 打开</button>
+              <button class="mini" data-copy="${esc(c.url)}">复制链接</button>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      function renderDetail() {
+        const box = $('detail');
+        if (S.selected === null || !S.playlist) return;
+        const song = S.playlist.tracks[S.selected];
+        const r = S.results.get(S.selected);
+
+        $('detailTitle').textContent = song ? `${song.title} — ${song.artistText}` : '候选详情';
+        $('detailTools').style.display = r ? '' : 'none';
+
+        if (!r) {
+          box.innerHTML = `<div class="empty-hint"><div class="spin" style="width:20px;height:20px"></div><div>正在匹配这首…</div></div>`;
+          return;
+        }
+
+        const conf = CONF[r.confidence];
+        const lc = LANG[r.lang] ?? ['var(--dim)', 'rgba(160,168,184,.15)'];
+        const best = r.best;
+        const others = r.candidates.slice(1);
+
+        const posReasons = (best?.reasons || []).filter((x) => !x.startsWith('降权') && !x.startsWith('无字幕'));
+        const negReasons = (best?.reasons || []).filter((x) => x.startsWith('降权') || x.startsWith('无字幕'));
+
+        box.innerHTML = `<div class="detail">
+          <div class="d-head">
+            <div style="flex:1;min-width:0">
+              <div class="d-title">${esc(song.title)}</div>
+              <div class="d-sub">${esc(song.artistText)}${song.album ? ' · ' + esc(song.album) : ''}${song.durationSec ? ' · ' + fmtDur(song.durationSec) : ''}</div>
+              <div class="badges">
+                <span class="badge" style="color:${lc[0]};background:${lc[1]}">${esc(r.langLabel)}</span>
+                <span class="badge" style="color:${conf.c};background:${conf.b}">${conf.l}</span>
+                ${r.bilingualNeeded ? `<span class="badge" style="color:var(--accent);background:var(--accent-soft)">需要双语</span>` : ''}
+                <span class="badge" style="color:var(--faint);background:rgba(107,115,131,.15)">${r.candidates.length} 个候选</span>
+              </div>
+            </div>
+          </div>
+
+          ${best ? '' : `<div style="color:var(--danger);font-size:12.5px;margin-bottom:10px">没有找到可信的 MV 候选${r.error ? '：' + esc(r.error) : ''}。可以试试下面的「补充关键词重搜」。</div>`}
+
+          ${best ? candHtml(best, 1, true, S.selected) : ''}
+
+          ${others.length ? `<div class="sect"><h3>其它候选</h3>${others.map((c, i) => candHtml(c, i + 2, false, S.selected)).join('')}</div>` : ''}
+
+          ${(posReasons.length || negReasons.length) ? `<div class="sect"><h3>判定依据</h3><div class="reasons">
+            ${posReasons.map((x) => `<span class="reason pos">${esc(x)}</span>`).join('')}
+            ${negReasons.map((x) => `<span class="reason neg">${esc(x)}</span>`).join('')}
+          </div></div>` : ''}
+
+          <div class="sect"><h3>补充关键词重搜</h3>
+            <div class="reseach">
+              <input type="text" id="reKey" placeholder="例如：官方 MV / 中日双语 / 现场" />
+              <button id="reGo">重新搜索</button>
+            </div>
+          </div>
+
+          ${best ? `<div class="sect"><h3>最佳候选详情</h3>
+            <div class="kv">
+              <div><div class="k">UP主</div><div class="v">${esc(best.author)}</div></div>
+              <div><div class="k">播放 / 弹幕</div><div class="v">${fmtCount(best.play)} / ${fmtCount(best.danmaku)}</div></div>
+              <div><div class="k">BV号</div><div class="v">${esc(best.bvid)}</div></div>
+              <div><div class="k">分区</div><div class="v">${esc(best.typename || '—')}</div></div>
+              <div><div class="k">发布</div><div class="v">${fmtDate(best.pubdate)}</div></div>
+              <div><div class="k">双语强度</div><div class="v">${best.bilingualHit.toFixed(2)}</div></div>
+            </div>
+            ${best.description ? `<pre class="desc" style="margin-top:12px">${esc(best.description.slice(0, 500))}</pre>` : ''}
+          </div>` : ''}
+        </div>`;
+
+        // 事件绑定
+        box.querySelectorAll('[data-open]').forEach((b) => { b.onclick = (e) => { e.stopPropagation(); window.open(b.dataset.open, '_blank', 'noopener'); }; });
+        box.querySelectorAll('[data-copy]').forEach((b) => {
+          b.onclick = async (e) => {
+            e.stopPropagation();
+            try { await navigator.clipboard.writeText(b.dataset.copy); toast('链接已复制'); } catch { toast('复制失败'); }
+          };
+        });
+        box.querySelectorAll('.cand').forEach((c) => {
+          c.onclick = () => window.open(`https://www.bilibili.com/video/${c.dataset.bv}`, '_blank', 'noopener');
+        });
+        const reGo = box.querySelector('#reGo');
+        if (reGo) reGo.onclick = () => research();
+        const reKey = box.querySelector('#reKey');
+        if (reKey) reKey.onkeydown = (e) => { if (e.key === 'Enter') research(); };
+      }
+
+      /** 用补充关键词重新搜索当前歌曲 */
+      async function research() {
+        if (S.selected === null || !S.playlist) return;
+        const song = S.playlist.tracks[S.selected];
+        const extra = ($('detail').querySelector('#reKey')?.value || '').trim();
+        $('detail').innerHTML = `<div class="empty-hint"><div class="spin" style="width:20px;height:20px"></div><div>重新搜索中…</div></div>`;
+        try {
+          const qs = new URLSearchParams({
+            title: song.title,
+            artist: song.artistText,
+            lang: S.results.get(S.selected)?.lang ?? song.lang ?? '',
+            extra,
+          });
+          if (song.durationSec) qs.set('duration', String(song.durationSec));
+          const j = await (await fetch(api('/api/search?' + qs.toString()))).json();
+          const r = S.results.get(S.selected);
+          if (r && j.candidates?.length) {
+            r.candidates = j.candidates;
+            r.best = j.best;
+            r.confidence = j.best?.confidence ?? 'low';
+            renderList(); renderDetail(); updateStats();
+          }
+          toast(j.candidates?.length ? `找到 ${j.candidates.length} 个候选` : '没有新候选');
+        } catch (e) {
+          toast('重搜失败：' + e.message);
+          renderDetail();
+        }
+      }
+
+      /* ═══════════════════════════════════════════════════════════
+         统计 / 导出
+         ═══════════════════════════════════════════════════════════ */
+      function updateStats() {
+        const arr = [...S.results.values()];
+        $('stDone').textContent = String(arr.length);
+        $('stBi').textContent = String(arr.filter((r) => r.bilingualNeeded && (r.best?.bilingualHit ?? 0) >= 0.6).length);
+      }
+
+      function allRows() {
+        if (!S.playlist) return [];
+        return S.order.map((i) => {
+          const song = S.playlist.tracks[i];
+          const r = S.results.get(i);
+          return {
+            index: i + 1,
+            song: song.title,
+            artist: song.artistText,
+            lang: r?.langLabel ?? '',
+            confidence: CONF[r?.confidence ?? 'none'].l,
+            bilingual: r?.bilingualNeeded ? ((r.best?.bilingualHit ?? 0) >= 0.6 ? '是' : '否') : '—',
+            video: r?.best?.title ?? '',
+            up: r?.best?.author ?? '',
+            duration: r?.best?.durationText ?? '',
+            url: r?.best?.url ?? '',
+            score: r?.best ? r.best.score.toFixed(0) : '',
+          };
+        });
+      }
+
+      function toCSV(rows) {
+        const head = ['序号', '歌曲', '歌手', '语种', '置信度', '双语', 'B站视频', 'UP主', '时长', '匹配分', '链接'];
+        const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+        const lines = [head.map(cell).join(',')];
+        for (const r of rows) lines.push([r.index, r.song, r.artist, r.lang, r.confidence, r.bilingual, r.video, r.up, r.duration, r.score, r.url].map(cell).join(','));
+        // 加 BOM，否则 Excel 打开中文会乱码
+        return '\ufeff' + lines.join('\r\n');
+      }
+
+      function download(name, text, mime = 'text/csv;charset=utf-8') {
+        const blob = new Blob([text], { type: mime });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      }
+
+      $('exportAll').onclick = () => {
+        const rows = allRows().filter((r) => r.video);
+        if (!rows.length) { toast('还没有可导出的结果'); return; }
+        const name = `歌单找MV_${(S.playlist?.name ?? 'playlist').replace(/[\\/:*?"<>|]/g, '_')}.csv`;
+        download(name, toCSV(rows));
+        toast(`已导出 ${rows.length} 条`);
+      };
+
+      $('copyOne').onclick = async () => {
+        const r = S.results.get(S.selected);
+        if (!r?.best) { toast('当前歌曲没有候选'); return; }
+        const t = `${r.song.title} — ${r.song.artistText}\n${r.best.title}\n${r.best.url}`;
+        try { await navigator.clipboard.writeText(t); toast('已复制'); } catch { toast('复制失败'); }
+      };
+
+      /* ═══════════════════════════════════════════════════════════
+         历史
+         ═══════════════════════════════════════════════════════════ */
+      const fmtAgo = (ms) => {
+        const s = (Date.now() - ms) / 1000;
+        if (s < 60) return '刚刚';
+        if (s < 3600) return Math.floor(s / 60) + ' 分钟前';
+        if (s < 86400) return Math.floor(s / 3600) + ' 小时前';
+        if (s < 86400 * 30) return Math.floor(s / 86400) + ' 天前';
+        return fmtDate(ms / 1000);
+      };
+
+      function histRow(e, withActions) {
+        const bi = e.bilingualNeeded ? ` · 双语 <b>${e.bilingualHit}</b>/${e.bilingualNeeded}` : '';
+        return `<div class="hist" data-id="${esc(e.id)}">
+          <img loading="lazy" src="${esc(e.cover)}" alt="" />
+          <div class="hb">
+            <div class="hn" title="${esc(e.name)}">${esc(e.name)}</div>
+            <div class="hm">${esc(e.creator || '')} · ${e.trackCount} 首 · 已匹配 ${e.matched}${bi} · ${fmtAgo(e.lastViewedAt)}</div>
+          </div>
+          ${withActions ? `<div class="ha">
+            <button class="mini" data-rematch="${esc(e.id)}" title="按当前设置重新匹配">重新匹配</button>
+            <button class="mini ghost" data-del="${esc(e.id)}" title="从历史中删除">✕</button>
+          </div>` : ''}
+        </div>`;
+      }
+
+      async function fetchHistory(q = '') {
+        const j = await (await fetch(api('/api/history?q=' + encodeURIComponent(q)))).json();
+        return j.items || [];
+      }
+
+      async function renderRecent() {
+        const box = $('recent');
+        if (!box) return;
+        try {
+          const items = (await fetchHistory()).slice(0, 5);
+          box.innerHTML = items.length ? `<h4>最近看过</h4>${items.map((e) => histRow(e, false)).join('')}` : '';
+          box.querySelectorAll('.hist').forEach((el) => { el.onclick = () => openFromHistory(el.dataset.id); });
+        } catch { box.innerHTML = ''; }
+      }
+
+      let histTimer = null;
+      async function renderHistory() {
+        const q = $('histQ').value.trim();
+        let items;
+        try { items = await fetchHistory(q); }
+        catch { $('histList').innerHTML = '<div class="hist-empty">读取历史失败，后端可能没连上</div>'; return; }
+        $('histCount').textContent = items.length ? `${items.length} 个` : '';
+        $('histList').innerHTML = items.length
+          ? items.map((e) => histRow(e, true)).join('')
+          : `<div class="hist-empty">${q ? '没有符合的歌单' : '还没有看过的歌单，匹配过的歌单会自动记在这里'}</div>`;
+        $('histList').querySelectorAll('.hist').forEach((el) => {
+          el.onclick = (ev) => {
+            const del = ev.target.closest('[data-del]');
+            const re = ev.target.closest('[data-rematch]');
+            if (del) { ev.stopPropagation(); removeHistory(del.dataset.del); return; }
+            if (re) { ev.stopPropagation(); closeHistory(); $('input').value = re.dataset.rematch; start(re.dataset.rematch); return; }
+            openFromHistory(el.dataset.id);
+          };
+        });
+      }
+
+      function openHistoryModal() {
+        $('history').classList.add('on');
+        $('histQ').value = '';
+        renderHistory();
+        setTimeout(() => $('histQ').focus(), 0);
+      }
+      function closeHistory() { $('history').classList.remove('on'); }
+
+      async function removeHistory(id) {
+        try { await fetch(api('/api/history/delete?id=' + encodeURIComponent(id)), { method: 'POST' }); toast('已从历史中删除'); }
+        catch { toast('删除失败'); }
+        renderHistory();
+      }
+
+      async function openFromHistory(id) {
+        closeHistory();
+        let j;
+        try {
+          const res = await fetch(api('/api/history/item?id=' + encodeURIComponent(id)));
+          j = await res.json();
+          if (!res.ok) throw new Error(j.error || 'HTTP ' + res.status);
+        } catch (e) { toast('打开失败：' + e.message); return; }
+
+        resetAll();
+        finish();
+        const pl = j.playlist;
+        S.playlist = pl;
+        S.order = pl.tracks.map((_, i) => i);
+        S.runPrefer = j.preferBilingual;
+        for (const r of j.results) S.results.set(r.index, r);
+        S.selected = j.results.length ? j.results[0].index : null;
+        $('input').value = pl.id;
+        $('plName').textContent = `《${pl.name}》 · ${pl.trackCount} 首`;
+        $('stTotal').textContent = String(pl.tracks.length);
+        $('progBar').style.width = (pl.tracks.length ? (j.results.length / pl.tracks.length) * 100 : 0) + '%';
+        $('stMsg').textContent = `来自历史记录 · ${j.preferBilingual ? '双语优先' : 'MV 优先'}`;
+        renderList(); renderDetail(); updateStats();
+        if (j.results.length < pl.tracks.length) showContinue();
+      }
+
+      $('openHistory').onclick = openHistoryModal;
+      $('histClose').onclick = closeHistory;
+      $('history').onclick = (e) => { if (e.target === $('history')) closeHistory(); };
+      $('histQ').oninput = () => { clearTimeout(histTimer); histTimer = setTimeout(renderHistory, 150); };
+      $('histClear').onclick = async () => {
+        if (!confirm('确定清空全部历史记录？匹配缓存不受影响。')) return;
+        try { await fetch(api('/api/history/clear'), { method: 'POST' }); toast('历史已清空'); }
+        catch { toast('清空失败'); }
+        renderHistory();
+      };
+
+      /* ═══════════════════════════════════════════════════════════
+         设置弹窗
+         ═══════════════════════════════════════════════════════════ */
+      function openSettings() {
+        $('serverUrl').value = location.origin;
+        $('pageSize').value = String(S.prefs.pageSize);
+        $('preferBilingual').checked = S.prefs.preferBilingual;
+        $('settings').classList.add('on');
+      }
+      $('openSettings').onclick = openSettings;
+      $('closeSettings').onclick = () => {
+        S.prefs.pageSize = Number($('pageSize').value) || 20;
+        S.prefs.preferBilingual = $('preferBilingual').checked;
+        savePrefs();
+        $('settings').classList.remove('on');
+        toast('设置已保存（下次匹配生效）');
+      };
+      $('settings').onclick = (e) => { if (e.target === $('settings')) $('settings').classList.remove('on'); };
+      $('clearCache').onclick = async () => {
+        try { await fetch(api('/api/cache/clear'), { method: 'POST' }); toast('服务端缓存已清空'); }
+        catch { toast('清理失败'); }
+      };
+
+      /* ═══════════════════════════════════════════════════════════
+         快捷键
+         ═══════════════════════════════════════════════════════════ */
+      let lastSearch = {};
+      document.addEventListener('keydown', (e) => {
+        const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName ?? '');
+        if (e.key === '/' && !typing) { e.preventDefault(); $('input').focus(); $('input').select(); return; }
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e') { e.preventDefault(); $('exportAll').click(); return; }
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') { e.preventDefault(); openHistoryModal(); return; }
+        if (e.key === 'Escape') { $('settings').classList.remove('on'); closeHistory(); return; }
+        if (typing) return;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          const idxs = visibleIndices();
+          if (!idxs.length) return;
+          e.preventDefault();
+          const at = idxs.indexOf(S.selected);
+          const next = e.key === 'ArrowDown' ? Math.min(idxs.length - 1, (at < 0 ? -1 : at) + 1) : Math.max(0, (at < 0 ? 1 : at) - 1);
+          S.userPicked = true;
+          S.selected = idxs[next];
+          renderList(); renderDetail();
+          document.querySelector(`.song[data-i="${S.selected}"]`)?.scrollIntoView({ block: 'nearest' });
+        }
+        if (e.key === 'Enter') {
+          const r = S.results.get(S.selected);
+          if (r?.best) window.open(r.best.url, '_blank', 'noopener');
+        }
+      });
+
+      /* 自动开始：支持 ?id=xxx */
+      const preset = new URLSearchParams(location.search).get('id');
+      if (preset) { $('input').value = preset; start(preset); }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+    <meta name="theme-color" content="#0E0F13" />
+    <!-- B站 图床防盗链：带本地地址的 Referer 会 403，不带则正常返回 -->
+    <meta name="referrer" content="no-referrer" />
+    <title>歌单找 MV · 网易云 → B站</title>
+    <style>
+      :root {
+        --bg: #0e0f13;
+        --bg-elevated: #16181f;
+        --card: #1b1e27;
+        --card-press: #232734;
+        --border: #282c38;
+        --text: #f2f4f8;
+        --dim: #a3aab8;
+        --faint: #6c7383;
+        --primary: #fb7299;
+        --primary-soft: rgba(251, 114, 153, 0.14);
+        --accent: #23ade5;
+        --accent-soft: rgba(35, 173, 229, 0.14);
+        --success: #3dd68c;
+        --success-soft: rgba(61, 214, 140, 0.14);
+        --warn: #f5a623;
+        --warn-soft: rgba(245, 166, 35, 0.14);
+        --danger: #f5544e;
+        --danger-soft: rgba(245, 84, 78, 0.14);
+        --radius: 16px;
+      }
+      * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font: 15px/1.5 -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', Roboto, sans-serif;
+        padding-bottom: env(safe-area-inset-bottom);
+        overscroll-behavior-y: contain;
+      }
+      .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px 96px; }
+
+      /* ---------- header ---------- */
+      header {
+        position: sticky; top: 0; z-index: 30;
+        background: rgba(14, 15, 19, 0.92);
+        backdrop-filter: saturate(180%) blur(14px);
+        border-bottom: 1px solid var(--border);
+        padding: calc(14px + env(safe-area-inset-top)) 16px 12px;
+      }
+      .head-inner { max-width: 760px; margin: 0 auto; display: flex; align-items: center; gap: 10px; }
+      .logo { width: 34px; height: 34px; border-radius: 11px; background: linear-gradient(135deg, var(--primary), var(--accent)); display: grid; place-items: center; font-size: 17px; flex-shrink: 0; }
+      h1 { font-size: 17px; margin: 0; font-weight: 800; letter-spacing: .2px; }
+      .sub { color: var(--faint); font-size: 11.5px; margin-top: 1px; }
+      .grow { flex: 1; min-width: 0; }
+      .status { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--dim); }
+      .status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex-shrink: 0; }
+      .status.ok .dot { background: var(--success); box-shadow: 0 0 8px var(--success); }
+      .status.fail .dot { background: var(--danger); }
+
+      /* ---------- form ---------- */
+      .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-top: 14px; }
+      .panel h2 { font-size: 14.5px; margin: 0 0 10px; font-weight: 700; }
+      .row { display: flex; gap: 8px; }
+      input[type=text] {
+        flex: 1; min-width: 0; background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+        color: var(--text); font-size: 14px; padding: 12px 14px; font-family: inherit;
+      }
+      input[type=text]::placeholder { color: var(--faint); }
+      input:focus { outline: none; border-color: var(--primary); }
+      button {
+        border: 1px solid var(--border); background: var(--card); color: var(--text);
+        border-radius: 12px; padding: 12px 16px; font-size: 14px; font-weight: 700;
+        font-family: inherit; cursor: pointer; white-space: nowrap; transition: transform .08s, opacity .15s;
+      }
+      button:active { transform: scale(.97); }
+      button:disabled { opacity: .45; cursor: not-allowed; }
+      button.primary { background: var(--primary); border-color: var(--primary); color: #141018; }
+      button.ghost { background: transparent; }
+      button.mini { padding: 8px 12px; font-size: 12.5px; }
+      .samples { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+      .hint { color: var(--faint); font-size: 11.5px; line-height: 1.6; margin: 10px 0 0; }
+      .adv { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
+      .adv summary { cursor: pointer; color: var(--dim); font-size: 13px; font-weight: 600; list-style: none; }
+      .adv summary::-webkit-details-marker { display: none; }
+      .adv summary::before { content: '▸ '; color: var(--faint); }
+      .adv[open] summary::before { content: '▾ '; }
+      label.check { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 13px; color: var(--dim); cursor: pointer; }
+      label.check input { width: 18px; height: 18px; accent-color: var(--primary); }
+
+      /* ---------- progress ---------- */
+      .prog { margin-top: 14px; }
+      .prog-top { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--dim); margin-bottom: 8px; font-weight: 600; }
+      .bar { height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; }
+      .bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 99px; transition: width .35s ease; }
+
+      /* ---------- results ---------- */
+      .list { margin-top: 14px; display: flex; flex-direction: column; gap: 12px; }
+      .song { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 20px; padding: 13px; }
+      .song-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+      .idx { color: var(--faint); font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 20px; }
+      .song-title { font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .song-sub { color: var(--faint); font-size: 11.5px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .tags { display: flex; gap: 4px; flex-wrap: wrap; }
+      .tag { font-size: 10.5px; font-weight: 800; padding: 3px 8px; border-radius: 99px; white-space: nowrap; }
+      .cand { display: flex; gap: 11px; background: var(--card); border-radius: 12px; padding: 9px; cursor: pointer; transition: background .15s; }
+      .cand:active { background: var(--card-press); }
+      .thumb { position: relative; width: 106px; height: 66px; border-radius: 8px; overflow: hidden; background: var(--bg); flex-shrink: 0; }
+      .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .dur { position: absolute; right: 3px; bottom: 3px; background: rgba(0,0,0,.75); color: #fff; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; }
+      .cand-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+      .cand-title { font-size: 13.5px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .cand-meta { color: var(--faint); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .score { font-size: 10.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+      .score b { color: var(--dim); font-weight: 700; }
+      .reasons { color: var(--dim); font-size: 11.5px; line-height: 1.5; margin-top: 9px; padding: 0 2px; }
+      .acts { display: flex; gap: 8px; margin-top: 10px; }
+      .acts button { flex: 1; }
+      .more { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+      .none { color: var(--faint); font-size: 12.5px; text-align: center; padding: 16px 0; }
+
+      /* ---------- sheet ---------- */
+      .sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 50; display: none; }
+      .sheet-bg.on { display: block; }
+      .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 51; background: var(--bg-elevated); border-radius: 22px 22px 0 0; max-height: 88vh; overflow-y: auto; padding: 10px 16px calc(20px + env(safe-area-inset-bottom)); transform: translateY(101%); transition: transform .28s cubic-bezier(.32,.72,0,1); }
+      .sheet.on { transform: translateY(0); }
+      .sheet .handle { width: 38px; height: 4px; border-radius: 2px; background: var(--border); margin: 0 auto 14px; }
+      .sheet h3 { font-size: 16px; margin: 0 0 10px; line-height: 1.4; }
+      .sheet img.big { width: 100%; border-radius: 12px; background: var(--card); display: block; margin: 10px 0; }
+      .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+      .kv div { font-size: 12px; }
+      .kv .k { color: var(--faint); font-weight: 700; font-size: 11px; }
+      .kv .v { color: var(--text); word-break: break-all; }
+      .blk { background: var(--card); border-radius: 12px; padding: 12px; margin-top: 12px; }
+      .blk .t { color: var(--dim); font-size: 11.5px; font-weight: 800; margin-bottom: 6px; }
+      .blk p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--text); }
+      .blk ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.65; }
+
+      /* ---------- history ---------- */
+      .panel h2 .cnt { color: var(--faint); font-weight: 500; font-size: 12px; }
+      .hist-list { display: flex; flex-direction: column; margin-top: 8px; }
+      .hist { display: flex; align-items: center; gap: 10px; padding: 9px 2px; border-top: 1px solid var(--border); cursor: pointer; }
+      .hist:first-child { border-top: 0; }
+      .hist img { width: 42px; height: 42px; border-radius: 9px; object-fit: cover; background: var(--card); flex-shrink: 0; }
+      .hist .hn { font-size: 13.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .hist .hm { font-size: 11px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
+      .hist .hm b { color: var(--success); font-weight: 600; }
+      .hist .del { padding: 6px 10px; font-size: 12px; color: var(--faint); border-color: transparent; background: transparent; }
+
+      .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: 34px; z-index: 80; background: rgba(20,22,28,.96); border: 1px solid var(--border); border-radius: 99px; padding: 10px 20px; font-size: 13px; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity .2s, bottom .2s; }
+      .toast.on { opacity: 1; bottom: 42px; }
+      .foot { text-align: center; color: var(--faint); font-size: 11px; margin-top: 22px; line-height: 1.7; }
+      a { color: var(--accent); }
+      @media (max-width: 380px) { .thumb { width: 88px; height: 56px; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="head-inner">
+        <div class="logo">🎬</div>
+        <div class="grow">
+          <h1>歌单找 MV</h1>
+          <div class="sub">网易云歌单 → B站 官方 MV · 外语歌优先双语字幕</div>
+        </div>
+        <div class="status" id="status"><span class="dot"></span><span id="statusText">检测中</span></div>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <div class="panel">
+        <h2>粘贴网易云歌单</h2>
+        <div class="row">
+          <input type="text" id="input" placeholder="歌单链接 / 分享短链 / 数字 ID" autocomplete="off" />
+          <button class="primary" id="go">开始</button>
+        </div>
+        <div class="samples">
+          <button class="mini" data-sample="3778678">热歌榜</button>
+          <button class="mini" data-sample="19723756">飙升榜</button>
+        </div>
+        <p class="hint">支持 <code>music.163.com/#/playlist?id=…</code>、App 分享的 <code>163cn.tv</code> 短链，或直接填数字 ID。</p>
+
+        <details class="adv" id="adv">
+          <summary>高级选项</summary>
+          <label class="check">
+            <input type="checkbox" id="preferBilingual" checked />
+            <span>外语歌优先双语字幕（关闭后纯粹按「最像官方 MV」排序）</span>
+          </label>
+          <div class="row" style="margin-top:12px;align-items:center;gap:10px">
+            <span class="hint" style="margin:0">每批匹配</span>
+            <select id="pageSize" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-family:inherit;font-size:13px">
+              <option>10</option><option selected>20</option><option>30</option><option>50</option>
+            </select>
+            <button class="mini ghost" id="clearCache">清空服务端缓存</button>
+          </div>
+        </details>
+      </div>
+
+      <div class="panel" id="histPanel" style="display:none">
+        <h2>最近看过 <span class="cnt" id="histCount"></span></h2>
+        <input type="text" id="histQ" placeholder="搜索歌单名 / 创建者 / ID" autocomplete="off" style="width:100%" />
+        <div class="hist-list" id="histList"></div>
+        <button class="mini ghost" id="histAll" style="width:100%;margin-top:6px;display:none">显示全部</button>
+      </div>
+
+      <div class="prog" id="prog" style="display:none">
+        <div class="prog-top"><span id="progText">准备中…</span><span id="progMeta"></span></div>
+        <div class="bar"><i id="progBar"></i></div>
+      </div>
+
+      <div class="list" id="list"></div>
+      <div id="more" style="margin-top:16px;display:none"><button style="width:100%" id="moreBtn">继续匹配</button></div>
+
+      <div class="foot">
+        后端服务 <code id="origin"></code><br />
+        匹配由服务端完成：WBI 签名、cookie 会话、限流重试、多路检索融合与本地重排序。
+      </div>
+    </div>
+
+    <div class="sheet-bg" id="sheetBg"></div>
+    <div class="sheet" id="sheet"><div class="handle"></div><div id="sheetBody"></div></div>
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const el = (tag, cls, html) => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
+      const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      const fmtCount = (n) => { n = Number(n) || 0; return n >= 1e8 ? (n / 1e8).toFixed(1) + '亿' : n >= 1e4 ? (n / 1e4).toFixed(1) + '万' : String(n); };
+      const fmtDur = (s) => { if (s == null) return '--:--'; s = Math.round(s); const m = Math.floor(s / 60), ss = s % 60; return m + ':' + String(ss).padStart(2, '0'); };
+      const fmtDate = (t) => { if (!t) return '—'; const d = new Date(t * 1000); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+
+      const CONF = {
+        high: { l: '很确定', c: 'var(--success)', b: 'var(--success-soft)' },
+        medium: { l: '可能对', c: 'var(--warn)', b: 'var(--warn-soft)' },
+        low: { l: '不太确定', c: 'var(--danger)', b: 'var(--danger-soft)' },
+        error: { l: '出错', c: 'var(--danger)', b: 'var(--danger-soft)' },
+        none: { l: '没找到', c: 'var(--faint)', b: 'rgba(108,115,131,.14)' },
+      };
+      const LANGC = { zh: ['#FF7A7A', 'rgba(255,122,122,.15)'], ja: ['#7AC6FF', 'rgba(122,198,255,.15)'], ko: ['#B79BFF', 'rgba(183,155,255,.15)'], en: ['#7EE3B0', 'rgba(126,227,176,.15)'] };
+      const BD = { title: '歌名', artist: '歌手', duration: '时长', mv: 'MV', bilingual: '双语', play: '播放', category: '分区', officialUp: '官方' };
+
+      $('origin').textContent = location.origin;
+      let es = null, results = [], offset = 0, playlistRef = null, runPrefer = true;
+
+      const toast = (m) => { const t = $('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 1800); };
+
+      // ---------------- 健康检查 ----------------
+      async function health() {
+        const s = $('status'), t = $('statusText');
+        try {
+          const r = await fetch('/api/health');
+          const j = await r.json();
+          s.className = 'status ok';
+          t.textContent = j.bili?.hasBuvid3 ? 'B站会话正常' : '已连接';
+          $('go').disabled = false;
+        } catch {
+          s.className = 'status fail';
+          t.textContent = '后端异常';
+        }
+      }
+      health();
+
+      // ---------------- 开始匹配 ----------------
+      function reset() {
+        if (es) { es.close(); es = null; }
+        results = []; offset = 0; playlistRef = null;
+        $('list').innerHTML = ''; $('more').style.display = 'none';
+        $('prog').style.display = 'block'; $('progBar').style.width = '0';
+        $('progText').textContent = '正在读取歌单…'; $('progMeta').textContent = '';
+      }
+
+      function start(input) {
+        if (!input) return;
+        reset();
+        runPrefer = $('preferBilingual').checked;
+        const qs = new URLSearchParams({
+          id: input,
+          limit: $('pageSize').value,
+          offset: '0',
+          preferBilingual: runPrefer ? '1' : '0',
+        });
+        stream(qs);
+      }
+
+      function stream(qs) {
+        es = new EventSource('/api/match/stream?' + qs.toString());
+        es.addEventListener('playlist', (e) => {
+          const pl = JSON.parse(e.data);
+          playlistRef = pl;
+          $('progText').textContent = `《${pl.name}》 · 共 ${pl.trackCount} 首`;
+        });
+        es.addEventListener('progress', (e) => {
+          const p = JSON.parse(e.data);
+          $('progBar').style.width = (p.total ? (p.done / p.total) * 100 : 0) + '%';
+          $('progMeta').textContent = `${p.done}/${p.total}`;
+          if (p.done) $('progText').textContent = `《${playlistRef?.name ?? ''}》 · 匹配中`;
+        });
+        es.addEventListener('song', (e) => { insert(JSON.parse(e.data)); });
+        es.addEventListener('done', (e) => {
+          const d = JSON.parse(e.data);
+          $('progBar').style.width = '100%';
+          $('progMeta').textContent = `用时 ${(d.elapsedMs / 1000).toFixed(1)}s`;
+          $('more').style.display = d.hasMore ? 'block' : 'none';
+          $('moreBtn').textContent = `继续匹配后面 ${Math.min(Number($('pageSize').value), Math.max((playlistRef?.trackCount ?? 0) - results.length, 0))} 首`;
+          if (es) { es.close(); es = null; }
+          renderHistory();
+        });
+        es.addEventListener('error', (e) => {
+          let msg = '连接中断';
+          try { msg = JSON.parse(e.data).message; } catch {}
+          $('progText').textContent = '出错：' + msg;
+          if (es) { es.close(); es = null; }
+        });
+      }
+
+      $('go').onclick = () => start($('input').value.trim());
+      $('input').addEventListener('keydown', (e) => { if (e.key === 'Enter') start($('input').value.trim()); });
+      document.querySelectorAll('[data-sample]').forEach((b) => {
+        b.onclick = () => { $('input').value = b.dataset.sample; start(b.dataset.sample); };
+      });
+      $('moreBtn').onclick = () => {
+        if (!playlistRef) return;
+        const qs = new URLSearchParams({
+          id: playlistRef.id, limit: $('pageSize').value, offset: String(results.length),
+          preferBilingual: runPrefer ? '1' : '0',
+        });
+        $('more').style.display = 'none';
+        stream(qs);
+      };
+      $('clearCache').onclick = async () => {
+        try { await fetch('/api/cache/clear', { method: 'POST' }); toast('缓存已清空'); }
+        catch { toast('清理失败'); }
+      };
+
+      // ---------------- 历史 ----------------
+      const fmtAgo = (ms) => {
+        const s = (Date.now() - ms) / 1000;
+        if (s < 60) return '刚刚';
+        if (s < 3600) return Math.floor(s / 60) + ' 分钟前';
+        if (s < 86400) return Math.floor(s / 3600) + ' 小时前';
+        if (s < 86400 * 30) return Math.floor(s / 86400) + ' 天前';
+        return fmtDate(ms / 1000);
+      };
+      let histShowAll = false, histTimer = null;
+
+      async function renderHistory() {
+        const q = $('histQ').value.trim();
+        let items;
+        try { items = (await (await fetch('/api/history?q=' + encodeURIComponent(q))).json()).items || []; }
+        catch { return; }
+        if (!q && !items.length) { $('histPanel').style.display = 'none'; return; }
+        $('histPanel').style.display = '';
+        $('histCount').textContent = q ? `${items.length} 个结果` : `${items.length} 个`;
+        const shown = histShowAll || q ? items : items.slice(0, 5);
+        $('histAll').style.display = shown.length < items.length ? '' : 'none';
+        $('histList').innerHTML = shown.length ? shown.map((e) => `
+          <div class="hist" data-id="${esc(e.id)}">
+            <img loading="lazy" src="${esc(e.cover)}" alt="" />
+            <div class="grow">
+              <div class="hn">${esc(e.name)}</div>
+              <div class="hm">${e.trackCount} 首 · 已匹配 ${e.matched}${e.bilingualNeeded ? ` · 双语 <b>${e.bilingualHit}</b>/${e.bilingualNeeded}` : ''} · ${fmtAgo(e.lastViewedAt)}</div>
+            </div>
+            <button class="del" data-del="${esc(e.id)}" aria-label="删除">✕</button>
+          </div>`).join('') : '<p class="hint" style="text-align:center">没有符合的歌单</p>';
+        $('histList').querySelectorAll('.hist').forEach((n) => {
+          n.onclick = (ev) => {
+            const del = ev.target.closest('[data-del]');
+            if (del) { ev.stopPropagation(); removeHistory(del.dataset.del); return; }
+            openFromHistory(n.dataset.id);
+          };
+        });
+      }
+
+      async function removeHistory(id) {
+        try { await fetch('/api/history/delete?id=' + encodeURIComponent(id), { method: 'POST' }); toast('已删除'); }
+        catch { toast('删除失败'); }
+        renderHistory();
+      }
+
+      async function openFromHistory(id) {
+        let j;
+        try {
+          const res = await fetch('/api/history/item?id=' + encodeURIComponent(id));
+          j = await res.json();
+          if (!res.ok) throw new Error(j.error || 'HTTP ' + res.status);
+        } catch (e) { toast('打开失败：' + e.message); return; }
+        reset();
+        const pl = j.playlist;
+        playlistRef = pl;
+        runPrefer = j.preferBilingual;
+        $('input').value = pl.id;
+        j.results.forEach(insert);
+        $('progText').textContent = `《${pl.name}》 · 来自历史记录`;
+        $('progMeta').textContent = `已匹配 ${j.results.length}/${pl.trackCount}`;
+        $('progBar').style.width = (pl.tracks.length ? (j.results.length / pl.tracks.length) * 100 : 0) + '%';
+        const left = Math.max(pl.tracks.length - j.results.length, 0);
+        $('more').style.display = left ? 'block' : 'none';
+        $('moreBtn').textContent = `继续匹配后面 ${Math.min(Number($('pageSize').value), left)} 首`;
+        $('prog').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      $('histQ').oninput = () => { clearTimeout(histTimer); histTimer = setTimeout(renderHistory, 150); };
+      $('histAll').onclick = () => { histShowAll = true; renderHistory(); };
+      renderHistory();
+
+      // ---------------- 渲染 ----------------
+      function insert(r) {
+        results.push(r);
+        const list = $('list');
+        const node = renderSong(r);
+        // 后端是并发匹配的，结果顺序可能乱，按 index 插到正确位置
+        const after = [...list.children].find((c) => Number(c.dataset.index) > r.index);
+        list.insertBefore(node, after ?? null);
+      }
+
+      function tag(label, color, bg) { return `<span class="tag" style="color:${color};background:${bg}">${esc(label)}</span>`; }
+
+      function renderSong(r) {
+        const n = el('div', 'song');
+        n.dataset.index = r.index;
+        const conf = CONF[r.confidence] ?? CONF.none;
+        const lc = LANGC[r.lang] ?? ['var(--dim)', 'rgba(163,170,184,.15)'];
+        const b = r.best;
+
+        const head = el('div', 'song-head');
+        head.appendChild(el('div', 'idx', String(r.index + 1).padStart(2, '0')));
+        const mid = el('div', 'grow');
+        mid.appendChild(el('div', 'song-title', esc(r.song.title)));
+        mid.appendChild(el('div', 'song-sub', esc(r.song.artistText + (r.song.durationSec ? ' · ' + fmtDur(r.song.durationSec) : ''))));
+        head.appendChild(mid);
+        head.appendChild(el('div', 'tags', tag(r.langLabel, lc[0], lc[1]) + tag(conf.l, conf.c, conf.b)));
+        n.appendChild(head);
+
+        if (!b) {
+          n.appendChild(el('div', 'none', r.error ? '匹配出错：' + esc(r.error) : '没有找到可信的 MV 候选'));
+          return n;
+        }
+
+        const cand = el('div', 'cand');
+        cand.innerHTML = `
+          <div class="thumb"><img loading="lazy" src="${esc(b.cover)}" alt="" /><span class="dur">${esc(b.durationText)}</span></div>
+          <div class="cand-body">
+            <div class="cand-title">${esc(b.title)}</div>
+            <div class="cand-meta">${esc(b.author)} · ${fmtCount(b.play)}播放</div>
+            <div class="tags">
+              ${r.bilingualNeeded ? (b.bilingualHit >= 0.6 ? tag('✓ 双语字幕', 'var(--success)', 'var(--success-soft)') : b.bilingualHit > 0 ? tag('有字幕', 'var(--warn)', 'var(--warn-soft)') : tag('无字幕', 'var(--faint)', 'rgba(108,115,131,.15)')) : ''}
+              ${b.mvHit >= 0.9 ? tag('MV', 'var(--accent)', 'var(--accent-soft)') : ''}
+              ${(b.negativeTags || []).slice(0, 2).map((t) => tag(t, 'var(--danger)', 'var(--danger-soft)')).join('')}
+            </div>
+          </div>`;
+        cand.onclick = () => openSheet(b, r.song);
+        n.appendChild(cand);
+
+        if (b.breakdown) {
+          const parts = Object.entries(b.breakdown).filter(([k, v]) => BD[k] && v !== 0)
+            .map(([k, v]) => `${BD[k]} <b style="color:${v < 0 ? 'var(--danger)' : 'var(--text)'}">${v > 0 ? '+' + v.toFixed(0) : v.toFixed(0)}</b>`);
+          if (parts.length) n.appendChild(el('div', 'score', parts.join('　')));
+        }
+        if (b.reasons?.length) n.appendChild(el('div', 'reasons', esc(b.reasons.slice(0, 4).join(' · '))));
+
+        const acts = el('div', 'acts');
+        const play = el('button', 'primary', '▶ 在 B站 打开');
+        play.onclick = () => window.open(b.url, '_blank', 'noopener');
+        acts.appendChild(play);
+
+        const more = el('div', 'more');
+        more.style.display = 'none';
+        if (r.candidates.length > 1) {
+          const mb = el('button', '', `其它候选 ${r.candidates.length - 1}`);
+          let built = false;
+          mb.onclick = () => {
+            if (!built) {
+              r.candidates.slice(1).forEach((c, i) => {
+                const cc = el('div', 'cand');
+                cc.innerHTML = `
+                  <div class="thumb"><img loading="lazy" src="${esc(c.cover)}" alt="" /><span class="dur">${esc(c.durationText)}</span></div>
+                  <div class="cand-body">
+                    <div class="cand-title">${esc(c.title)}</div>
+                    <div class="cand-meta">#${i + 2} · ${esc(c.author)} · ${fmtCount(c.play)}播放 · 匹配分 ${c.score.toFixed(0)}</div>
+                    <div class="tags">${c.bilingualHit >= 0.6 ? tag('双语字幕', 'var(--success)', 'var(--success-soft)') : ''}${c.mvHit >= 0.9 ? tag('MV', 'var(--accent)', 'var(--accent-soft)') : ''}${(c.negativeTags || []).slice(0, 2).map((t) => tag(t, 'var(--danger)', 'var(--danger-soft)')).join('')}</div>
+                  </div>`;
+                cc.onclick = () => openSheet(c, r.song);
+                more.appendChild(cc);
+              });
+              built = true;
+            }
+            const on = more.style.display === 'flex';
+            more.style.display = on ? 'none' : 'flex';
+            mb.textContent = on ? `其它候选 ${r.candidates.length - 1}` : '收起候选';
+          };
+          acts.appendChild(mb);
+        }
+        n.appendChild(acts);
+        n.appendChild(more);
+        return n;
+      }
+
+      // ---------------- 详情弹层 ----------------
+      function openSheet(c, song) {
+        const conf = CONF[c.confidence] ?? CONF.none;
+        const body = $('sheetBody');
+        body.innerHTML = `
+          <h3>${esc(c.title)}</h3>
+          <div class="tags">
+            ${tag(conf.l, conf.c, conf.b)}
+            ${tag('匹配分 ' + c.score.toFixed(0), 'var(--text)', 'rgba(255,255,255,.09)')}
+            ${c.bilingualHit >= 0.6 ? tag('双语字幕', 'var(--success)', 'var(--success-soft)') : ''}
+            ${c.mvHit >= 0.9 ? tag('MV', 'var(--accent)', 'var(--accent-soft)') : ''}
+          </div>
+          <img class="big" src="${esc(c.cover)}" alt="" />
+          <div class="kv">
+            <div><div class="k">UP主</div><div class="v">${esc(c.author)}</div></div>
+            <div><div class="k">播放 / 弹幕</div><div class="v">${fmtCount(c.play)} / ${fmtCount(c.danmaku)}</div></div>
+            <div><div class="k">时长</div><div class="v">${esc(c.durationText || fmtDur(c.durationSec))}</div></div>
+            <div><div class="k">分区</div><div class="v">${esc(c.typename || '—')}</div></div>
+            <div><div class="k">发布</div><div class="v">${fmtDate(c.pubdate)}</div></div>
+            <div><div class="k">BV号</div><div class="v">${esc(c.bvid)}</div></div>
+          </div>
+          <div class="blk"><div class="t">对应歌曲</div><p>${esc(song.title)} — ${esc(song.artistText)}</p></div>
+          ${c.reasons?.length ? `<div class="blk"><div class="t">为什么推荐它</div><ul>${c.reasons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''}
+          ${c.negativeTags?.length ? `<div class="blk"><div class="t">已识别的减分特征</div><p>${esc(c.negativeTags.join('、'))}</p></div>` : ''}
+          ${c.description ? `<div class="blk"><div class="t">视频简介</div><p>${esc(c.description.slice(0, 400))}</p></div>` : ''}
+          <div class="row" style="margin-top:14px">
+            <button class="primary" style="flex:1.4" onclick="window.open('${esc(c.url)}','_blank','noopener')">▶ 在 B站 打开</button>
+            <button style="flex:1" id="copyLink">复制链接</button>
+          </div>
+          <button class="ghost" style="width:100%;margin-top:8px" id="closeSheet">关闭</button>`;
+        body.querySelector('#copyLink').onclick = async () => {
+          try { await navigator.clipboard.writeText(c.url); toast('链接已复制'); }
+          catch { toast('复制失败，请长按链接'); }
+        };
+        body.querySelector('#closeSheet').onclick = closeSheet;
+        $('sheet').classList.add('on');
+        $('sheetBg').classList.add('on');
+      }
+      function closeSheet() { $('sheet').classList.remove('on'); $('sheetBg').classList.remove('on'); }
+      $('sheetBg').onclick = closeSheet;
+
+      // 支持用 ?id=xxx 直接打开
+      const preset = new URLSearchParams(location.search).get('id');
+      if (preset) { $('input').value = preset; start(preset); }
+    </script>
+  </body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "bili-mv-finder-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "网易云歌单 → B站 MV 匹配服务（含双语字幕优先策略）",
+  "main": "src/index.mjs",
+  "scripts": {
+    "start": "node src/index.mjs",
+    "dev": "node --watch src/index.mjs",
+    "eval": "node tools/eval.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {}
+}
