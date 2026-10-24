@@ -2,7 +2,7 @@
   "name": "bili-mv-finder-desktop",
   "version": "1.0.0",
   "private": true,
-  "description": "歌单找 MV · Windows 桌面版（Electron）",
+  "description": "寻影姬 BiliTune · Windows 桌面版（Electron）",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -15,12 +15,12 @@
   },
   "build": {
     "appId": "com.bilimvfinder.desktop",
-    "productName": "歌单找MV",
+    "productName": "寻影姬",
     "directories": {
       "output": "dist",
       "buildResources": "build"
     },
-    "files": ["main.js", "package.json"],
+    "files": ["main.js", "preload.js", "package.json"],
     "extraResources": [
       {
         "from": "../server",
@@ -40,10 +40,10 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "歌单找MV"
+      "shortcutName": "寻影姬"
     },
     "portable": {
-      "artifactName": "歌单找MV-便携版-${version}.exe"
+      "artifactName": "寻影姬-便携版-${version}.exe"
     }
   }
 }

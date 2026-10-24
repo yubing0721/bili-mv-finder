@@ -108,7 +108,7 @@ console.log(`  页面: ${page.url}`);
 console.log(`  标题: ${page.title}`);
 
 check('窗口加载的是后端页面（不是启动画面）', /127\.0\.0\.1:\d+\/desktop/.test(page.url), page.url);
-check('页面标题正确', /歌单找 MV/.test(page.title), page.title);
+check('页面标题正确', /寻影姬/.test(page.title), page.title);
 
 const cdp = await connect(page.webSocketDebuggerUrl);
 
@@ -146,7 +146,7 @@ const cols = await evalJS(`getComputedStyle(document.querySelector('main')).grid
 check('主区域是两栏布局（桌面版）', /\d+(\.\d+)?px\s+\d+(\.\d+)?px/.test(cols), cols);
 
 const headerText = await evalJS(`document.querySelector('header').innerText`);
-check('顶栏有品牌名', /歌单找 MV/.test(headerText), headerText.replace(/\n/g, ' | '));
+check('顶栏有品牌名', /寻影姬/.test(headerText), headerText.replace(/\n/g, ' | '));
 check('顶栏有歌单输入框', await evalJS(`!!document.getElementById('input')`));
 check('顶栏有开始按钮', /开始匹配/.test(headerText));
 

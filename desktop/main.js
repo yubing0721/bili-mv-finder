@@ -1,5 +1,5 @@
 /**
- * 歌单找 MV · Windows 桌面版主进程
+ * 寻影姬 BiliTune · Windows 桌面版主进程
  *
  * 设计要点：
  *
@@ -73,7 +73,7 @@ const fs = require('node:fs');
 // （CommonJS 模块顶层允许 return）
 if (!require('electron')?.app) return;
 
-const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell, dialog } = require('electron');
 
 const PORT = Number(process.env.BMF_PORT || 8787);
 const APP_URL = `http://127.0.0.1:${PORT}/desktop`;
@@ -82,6 +82,7 @@ const APP_URL = `http://127.0.0.1:${PORT}/desktop`;
 let serverProc = null;
 /** @type {BrowserWindow | null} */
 let win = null;
+let appLoaded = false;
 /** 子进程是否由本进程拉起（若端口本来就有人在用，就不该由我们关掉） */
 let weStartedServer = false;
 let quitting = false;
@@ -207,22 +208,20 @@ function stopServer() {
 
 const SPLASH = `data:text/html;charset=utf-8,${encodeURIComponent(`
 <!doctype html><html><head><meta charset="utf-8"><style>
-  html,body{margin:0;height:100%;background:#0e0f13;color:#f0f2f7;
-    font:14px/1.6 "Segoe UI","Microsoft YaHei UI",sans-serif;
+  html,body{margin:0;height:100%;background:#000;color:#fff;
+    font:14px/1.6 "Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI",sans-serif;
     display:grid;place-items:center;-webkit-user-select:none}
   .b{text-align:center}
-  .logo{width:52px;height:52px;border-radius:15px;margin:0 auto 16px;
-    background:linear-gradient(135deg,#fb7299,#23ade5);display:grid;place-items:center;font-size:26px}
-  .t{font-size:15px;font-weight:700}
-  .s{color:#6b7383;font-size:12px;margin-top:6px}
-  .bar{width:190px;height:3px;background:#2b3040;border-radius:9px;margin:18px auto 0;overflow:hidden}
-  .bar i{display:block;height:100%;width:40%;background:linear-gradient(90deg,#fb7299,#23ade5);
-    border-radius:9px;animation:m 1.1s ease-in-out infinite}
+  .logo{width:30px;height:30px;margin:0 auto 18px;color:#fb7299}
+  .t{font-size:15px;font-weight:600;letter-spacing:-.01em}
+  .s{color:#949494;font-size:12px;margin-top:6px}
+  .bar{width:190px;height:2px;background:#1a1a1a;margin:20px auto 0;overflow:hidden}
+  .bar i{display:block;height:100%;width:40%;background:#fb7299;animation:m 1.1s ease-in-out infinite}
   @keyframes m{0%{transform:translateX(-110%)}100%{transform:translateX(360%)}}
 </style></head><body><div class="b">
-  <div class="logo">🎬</div>
-  <div class="t">歌单找 MV</div>
-  <div class="s">正在启动本地服务…</div>
+  <svg class="logo" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="10" width="4" height="8" rx="1" fill="currentColor" opacity=".45"/><rect x="9" y="5" width="4" height="18" rx="1" fill="currentColor" opacity=".7"/><path d="M17 8l8 6-8 6z" fill="currentColor"/></svg>
+  <div class="t">寻影姬</div>
+  <div class="s">BiliTune · 正在启动本地服务…</div>
   <div class="bar"><i></i></div>
 </div></body></html>`)}`;
 
@@ -236,16 +235,33 @@ function createWindow() {
     minWidth: 1000,
     minHeight: 640,
     backgroundColor: '#0e0f13',
-    title: '歌单找 MV',
+    title: '寻影姬 · BiliTune',
     show: false,
-    autoHideMenuBar: false,
+    autoHideMenuBar: true,
+    ...(process.platform === 'win32'
+      ? { titleBarStyle: 'hidden', titleBarOverlay: { color: '#000000', symbolColor: '#ffffff', height: 36 } }
+      : {}),
     webPreferences: {
-      // 页面来自本地 HTTP 服务，不需要任何 Node 能力
+      // 页面来自本地 HTTP 服务，不需要任何 Node 能力；
+      // preload 只暴露「打开日志/关于/退出」三个动作。
+      preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
       spellcheck: false,
     },
+  });
+
+  // 菜单栏与深色界面不搭，改为页面内的「更多」菜单；F5 / Ctrl+R 仍可刷新
+  Menu.setApplicationMenu(null);
+  win.webContents.on('before-input-event', (e, input) => {
+    if (input.type !== 'keyDown') return;
+    if (input.key === 'F5' || (input.control && input.key.toLowerCase() === 'r')) {
+      e.preventDefault();
+      win.webContents.reload();
+    }
+    if (input.key === 'F11') { e.preventDefault(); win.setFullScreen(!win.isFullScreen()); }
+    if (input.key === 'F12') { e.preventDefault(); win.webContents.toggleDevTools(); }
   });
 
   win.loadURL(SPLASH);
@@ -269,9 +285,39 @@ function createWindow() {
   win.webContents.on('will-navigate', (e, url) => {
     if (!url.startsWith(`http://127.0.0.1:${PORT}`)) {
       e.preventDefault();
-      shell.openExternal(url);
+      if (/^https?:/.test(url)) shell.openExternal(url);
     }
   });
+
+  // 鼠标侧键的“后退”走的是导航历史，不会触发 will-navigate。
+  // 启动页是一个 data: URL，一旦退回去就再也回不来（一直停在“正在启动本地服务”）。
+  win.on('app-command', (e, command) => {
+    if (command !== 'browser-backward' && command !== 'browser-forward') return;
+    e.preventDefault();
+    if (command === 'browser-backward') {
+      // 侧键 = 回到“选择歌单”界面（关弹窗优先），由页面自己处理
+      win.webContents.executeJavaScript('window.__appBack?.()').catch(() => {});
+    }
+  });
+
+  // 进入应用页后清空历史，侧键/快捷键就没有可回退的启动页；
+  // 万一仍落到非应用页（比如页面内脚本改 location），直接拉回应用。
+  const ensureAppPage = () => {
+    if (!win || win.webContents.isDestroyed()) return;
+    const url = win.webContents.getURL();
+    if (url.startsWith(`http://127.0.0.1:${PORT}`)) {
+      try {
+        win.webContents.navigationHistory.clear();
+      } catch {
+        /* 旧版本不支持就靠下面的兜底 */
+      }
+      return;
+    }
+    // 启动页阶段不动它，等主进程切换到应用页
+    if (appLoaded) win.loadURL(APP_URL);
+  };
+  win.webContents.on('did-finish-load', ensureAppPage);
+  win.webContents.on('did-navigate', ensureAppPage);
 
   for (const ev of ['resize', 'move']) win.on(ev, debounce(saveState, 400));
   win.on('close', saveState);
@@ -290,41 +336,13 @@ function debounce(fn, ms) {
   };
 }
 
-/** 极简菜单：只留有实际用处的项 */
-function buildMenu() {
-  const template = [
-    {
-      label: '文件',
-      submenu: [
-        { label: '重新加载', accelerator: 'F5', click: () => win?.webContents.reload() },
-        { label: '清空服务端缓存', click: clearCache },
-        { type: 'separator' },
-        { label: '打开日志文件夹', click: () => shell.openPath(app.getPath('userData')) },
-        { type: 'separator' },
-        { label: '退出', accelerator: 'Alt+F4', role: 'quit' },
-      ],
-    },
-    {
-      label: '视图',
-      submenu: [
-        { label: '放大', role: 'zoomIn' },
-        { label: '缩小', role: 'zoomOut' },
-        { label: '实际大小', role: 'resetZoom' },
-        { type: 'separator' },
-        { label: '全屏', role: 'togglefullscreen' },
-        { label: '开发者工具', accelerator: 'F12', click: () => win?.webContents.toggleDevTools() },
-      ],
-    },
-    {
-      label: '帮助',
-      submenu: [
-        { label: '在浏览器中打开（手机也能用）', click: () => shell.openExternal(APP_URL) },
-        { label: '关于', click: showAbout },
-      ],
-    },
-  ];
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
-}
+/** 页面内「更多」菜单的三个原生动作 */
+ipcMain.on('bmf:open-logs', () => shell.openPath(app.getPath('userData')));
+ipcMain.on('bmf:about', () => showAbout());
+ipcMain.on('bmf:quit', () => app.quit());
+ipcMain.on('bmf:toggle-fullscreen', () => win?.setFullScreen(!win.isFullScreen()));
+ipcMain.on('bmf:toggle-devtools', () => win?.webContents.toggleDevTools());
+ipcMain.on('bmf:open-browser', () => shell.openExternal(APP_URL));
 
 async function clearCache() {
   try {
@@ -339,7 +357,7 @@ function showAbout() {
   dialog.showMessageBox(win, {
     type: 'info',
     title: '关于',
-    message: '歌单找 MV',
+    message: '寻影姬 BiliTune',
     detail:
       `版本 ${app.getVersion()}\n\n` +
       '输入网易云歌单，自动在 B站 匹配每首歌的 MV；\n' +
@@ -363,11 +381,11 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(async () => {
     createWindow();
-    buildMenu();
 
     // 端口已经有服务在跑（例如用户自己开过 node），就不再重复启动
     if (await probePort(PORT)) {
       weStartedServer = false;
+      appLoaded = true;
       win?.loadURL(APP_URL);
       return;
     }
@@ -393,6 +411,7 @@ if (!app.requestSingleInstanceLock()) {
       );
       return;
     }
+    appLoaded = true;
     win?.loadURL(APP_URL);
   });
 
