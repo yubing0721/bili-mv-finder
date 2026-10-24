@@ -24,6 +24,7 @@
 | `bilitune-x.y.z-portable.exe` | **便携版**，双击即用，不写注册表 |
 | `bilitune-x.y.z-setup.exe` | 安装版，会建桌面快捷方式，可从开始菜单卸载 |
 | `SHA256SUMS.txt` | 校验值 |
+| `bilitune-x.y.z-arm64-v8a.apk` | **Android App**（可选）：默认本机匹配，不需要电脑。App 源码不在本仓库 |
 
 启动时应用会自己拉起本地后端（复用 Electron 内置的 Node），
 关掉窗口时自动回收后端进程 —— 不用管端口和命令行。
