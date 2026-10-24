@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!-- B站 图床防盗链：带本地地址的 Referer 会 403，不带则正常返回 -->
     <meta name="referrer" content="no-referrer" />
-    <title>歌单找 MV · 桌面版</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <title>寻影姬 · BiliTune · 桌面版</title>
     <style>
       /* true-black-flat · seed 1114571870
          层次只靠明度：ground #000 → surface #111 → raised #1a1a1a；卡片无边框无阴影。
@@ -101,6 +102,32 @@
       .conn i { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); display: block; }
       .conn.ok i { background: var(--positive); }
       .conn.fail i { background: var(--danger); }
+
+      /* Electron 隐藏标题栏后：页面顶部留出窗口控制区，并允许拖动窗口 */
+      body.electron header { padding-right: 150px; -webkit-app-region: drag; }
+      body.electron header button, body.electron header input, body.electron header a { -webkit-app-region: no-drag; }
+      .icon-btn {
+        width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%;
+        background: transparent; color: var(--muted); display: grid; place-items: center; flex-shrink: 0;
+      }
+      .icon-btn:hover { background: var(--raised); border-color: transparent; color: var(--text); }
+      .icon-btn:disabled { opacity: .3; cursor: default; background: transparent; }
+      .icon-btn svg { width: 18px; height: 18px; display: block; }
+      .more-wrap { position: relative; -webkit-app-region: no-drag; }
+      .menu {
+        position: absolute; top: calc(100% + 8px); right: 0; min-width: 184px;
+        background: var(--surface); border: 1px solid var(--control); border-radius: var(--radius-card);
+        padding: 6px; display: none; z-index: 80; box-shadow: 0 12px 32px rgba(0,0,0,.5);
+      }
+      .menu.on { display: block; }
+      .menu button {
+        display: block; width: 100%; height: 34px; min-height: 0; padding: 0 10px;
+        text-align: left; border: 0; border-radius: var(--radius-control);
+        background: transparent; color: var(--text); font-size: 13px; font-weight: 500;
+      }
+      .menu button:hover { background: var(--raised); }
+      .menu hr { border: 0; border-top: 1px solid var(--rule); margin: 6px 4px; }
+
 
       /* ══════════ 主体：主从两栏，一条 1px 规则分隔 ══════════ */
       main { display: grid; grid-template-columns: 360px minmax(0, 1fr); min-height: 0; min-width: 0; }
@@ -314,20 +341,37 @@
   <body>
     <!-- ══════ 顶栏 ══════ -->
     <header>
+      <button class="icon-btn" id="backBtn" title="返回选择歌单（鼠标侧键相同）" aria-label="返回选择歌单"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5L7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <svg class="logo" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="10" width="4" height="8" rx="1" fill="currentColor" opacity=".45"/><rect x="9" y="5" width="4" height="18" rx="1" fill="currentColor" opacity=".7"/><path d="M17 8l8 6-8 6z" fill="currentColor"/></svg>
-      <div class="brand"><h2>歌单找 MV</h2><small>网易云 → B站 · 外语歌优先双语字幕</small></div>
+      <div class="brand"><h2>寻影姬</h2><small>BiliTune · 网易云 → B站 · 优先双语字幕</small></div>
       <div class="sep"></div>
 
       <div class="search">
         <input type="text" id="input" placeholder="粘贴网易云歌单链接 / 163cn.tv 短链 / 数字 ID" autocomplete="off" spellcheck="false" />
         <button class="primary" id="go">开始匹配</button>
+        <button id="goAll" title="自动一批接一批匹配，直到全部完成或点停止">匹配全部</button>
         <button id="stop" style="display:none">停止</button>
       </div>
 
       <div class="right">
         <div class="conn" id="conn"><i></i><span id="connText">检测中…</span></div>
+        <button class="text mini" id="prefToggle">双语优先</button>
         <button class="text mini" id="openHistory" title="看过的歌单（Ctrl+H）">历史</button>
         <button class="text mini" id="openSettings" title="设置">设置</button>
+        <div class="more-wrap">
+          <button class="text mini" id="moreBtn">更多</button>
+          <div class="menu" id="moreMenu">
+            <button data-act="reload">重新加载</button>
+            <button data-act="cache">清空服务端缓存</button>
+            <button data-act="logs">打开日志文件夹</button>
+            <button data-act="browser">在浏览器中打开</button>
+            <button data-act="fullscreen">全屏</button>
+            <button data-act="devtools">开发者工具</button>
+            <button data-act="about">关于</button>
+            <hr />
+            <button data-act="quit">退出</button>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -398,7 +442,7 @@
         </div>
         <div class="field">
           <label class="check"><input type="checkbox" id="preferBilingual" checked /> 外语歌优先双语字幕</label>
-          <div class="hint">关闭后纯粹按「最像官方 MV」排序，双语只是很弱的平局决胜因素。</div>
+          <div class="hint">关闭后不再检索双语字幕，改为按播放量、弹幕量、本家（歌手本人）投稿和官方账号排序。</div>
         </div>
         <div class="row">
           <button class="ghost" id="clearCache">清空服务端缓存</button>
@@ -439,7 +483,7 @@
         error: { l: '出错', c: 'var(--danger)' },
         none: { l: '没找到', c: 'var(--faint)' },
       };
-      const BD = { title: '歌名', artist: '歌手', duration: '时长', mv: 'MV', bilingual: '双语', play: '播放', category: '分区', officialUp: '官方' };
+      const BD = { title: '歌名', artist: '歌手', duration: '时长', mv: 'MV', bilingual: '双语', play: '播放', category: '分区', officialUp: '官方', officialMain: '官方正片', penalty: '降权' };
       /** 得分构成画成一条尺：正值按占比分段，负值单独一段红色 */
       function rulerHtml(b) {
         const bd = Object.entries(b.breakdown || {}).filter(([k, v]) => BD[k] && v !== 0);
@@ -474,6 +518,9 @@
         filter: 'all',
         running: false,
         es: null,
+        /** 连续匹配：每批完成后自动开下一批，直到全部完成或用户停止 */
+        auto: false,
+        startedAt: 0,
         /** 本次匹配实际使用的双语偏好；从历史打开时沿用快照当时的设置 */
         runPrefer: true,
         prefs: { pageSize: 20, preferBilingual: true },
@@ -505,7 +552,7 @@
          ═══════════════════════════════════════════════════════════ */
       function resetAll() {
         if (S.es) { S.es.close(); S.es = null; }
-        S.results.clear(); S.order = []; S.selected = null; S.playlist = null; S.userPicked = false;
+        S.results.clear(); S.order = []; S.selected = null; S.playlist = null; S.userPicked = false; S.auto = false;
         $('songList').innerHTML = ''; $('plName').textContent = '正在读取歌单…';
         $('detailTitle').textContent = '候选详情';
         $('detailTools').style.display = 'none';
@@ -517,19 +564,35 @@
         document.querySelectorAll('footer .cont').forEach((b) => b.remove());
       }
 
-      function start(input) {
+      function start(input, auto = false) {
         const v = (input ?? $('input').value).trim();
         if (!v) { toast('请先粘贴歌单链接或 ID'); return; }
         resetAll();
         S.running = true;
+        S.auto = auto;
+        S.startedAt = Date.now();
         S.runPrefer = S.prefs.preferBilingual;
         $('go').style.display = 'none';
+        $('goAll').style.display = 'none';
         $('stop').style.display = '';
-        $('stMsg').textContent = '正在匹配…';
+        $('stMsg').textContent = auto ? '连续匹配中…' : '正在匹配…';
+        updateBackBtn();
         stream(new URLSearchParams({
           id: v,
           limit: String(S.prefs.pageSize),
           offset: '0',
+          preferBilingual: S.runPrefer ? '1' : '0',
+        }));
+      }
+
+      /** 下一批（offset 从已有结果之后接上） */
+      function runNextBatch() {
+        S.running = true;
+        $('go').style.display = 'none';
+        $('goAll').style.display = 'none';
+        $('stop').style.display = '';
+        stream(new URLSearchParams({
+          id: S.playlist.id, limit: String(S.prefs.pageSize), offset: String(S.results.size),
           preferBilingual: S.runPrefer ? '1' : '0',
         }));
       }
@@ -541,13 +604,8 @@
         btn.textContent = '继续匹配';
         btn.onclick = () => {
           btn.remove();
-          S.running = true;
-          $('go').style.display = 'none';
-          $('stop').style.display = '';
-          stream(new URLSearchParams({
-            id: S.playlist.id, limit: String(S.prefs.pageSize), offset: String(S.results.size),
-            preferBilingual: S.runPrefer ? '1' : '0',
-          }));
+          S.auto = false;
+          runNextBatch();
         };
         $('stMsg').after(btn);
       }
@@ -558,6 +616,7 @@
         S.es = es;
 
         es.addEventListener('playlist', (e) => {
+          if (S.es !== es) return;
           const pl = JSON.parse(e.data);
           S.playlist = pl;
           S.order = pl.tracks.map((_, i) => i);
@@ -567,6 +626,7 @@
         });
 
         es.addEventListener('song', (e) => {
+          if (S.es !== es) return;
           const r = JSON.parse(e.data);
           S.results.set(r.index, r);
           const prevSelected = S.selected;
@@ -584,14 +644,32 @@
         });
 
         es.addEventListener('progress', (e) => {
+          if (S.es !== es) return;
           const p = JSON.parse(e.data);
-          $('progBar').style.width = (p.total ? (p.done / p.total) * 100 : 0) + '%';
-          $('stMsg').textContent = `匹配中 ${p.done}/${p.total}`;
+          if (S.auto && S.playlist) {
+            // 连续模式按整个歌单算进度，不能每批都从 0 走到 100
+            const total = S.playlist.tracks.length || p.total;
+            const doneAll = Math.min(S.results.size, total);
+            $('progBar').style.width = (doneAll / total) * 100 + '%';
+            $('stMsg').textContent = `匹配中 ${doneAll}/${total}`;
+          } else {
+            $('progBar').style.width = (p.total ? (p.done / p.total) * 100 : 0) + '%';
+            $('stMsg').textContent = `匹配中 ${p.done}/${p.total}`;
+          }
         });
 
         es.addEventListener('done', (e) => {
           const d = JSON.parse(e.data);
-          $('stMs').textContent = (d.elapsedMs / 1000).toFixed(1) + 's';
+          if (S.auto && d.hasMore) {
+            const total = S.playlist?.tracks.length || 0;
+            $('stMs').textContent = ((Date.now() - S.startedAt) / 1000).toFixed(1) + 's';
+            $('progBar').style.width = (total ? (S.results.size / total) * 100 : 0) + '%';
+            $('stMsg').textContent = `匹配中 ${S.results.size}/${total}`;
+            if (S.es) { S.es.close(); S.es = null; }
+            runNextBatch();
+            return;
+          }
+          $('stMs').textContent = ((S.auto ? Date.now() - S.startedAt : d.elapsedMs) / 1000).toFixed(1) + 's';
           $('progBar').style.width = '100%';
           $('stMsg').textContent = d.hasMore ? '还有更多（可继续匹配）' : '全部完成';
           if (d.hasMore) showContinue();
@@ -599,31 +677,116 @@
         });
 
         es.addEventListener('error', (e) => {
+          if (S.es !== es) return;
           let msg = '连接中断';
           try { msg = JSON.parse(e.data).message; } catch {}
+          S.auto = false;
           $('stMsg').textContent = '出错：' + msg;
           toast(msg);
           finish();
         });
 
         // 网络层断开（服务端关闭流）时 EventSource 也会触发 error
-        es.onerror = () => { if (es.readyState === EventSource.CLOSED) finish(); };
+        es.onerror = () => { if (S.es === es && es.readyState === EventSource.CLOSED) finish(); };
       }
 
       function finish() {
         S.running = false;
         if (S.es) { S.es.close(); S.es = null; }
         $('go').style.display = '';
+        $('goAll').style.display = '';
         $('stop').style.display = 'none';
+        updateBackBtn();
         renderList();
       }
 
-      $('go').onclick = () => start();
-      $('stop').onclick = () => { finish(); $('stMsg').textContent = '已停止'; };
-      $('input').addEventListener('keydown', (e) => { if (e.key === 'Enter') start(); });
-      document.querySelectorAll('[data-sample]').forEach((a) => {
-        a.onclick = (e) => { e.preventDefault(); $('input').value = a.dataset.sample; start(a.dataset.sample); };
+      /** 顶栏快捷开关：双语优先 ↔ 按播放/弹幕/本家投稿排序 */
+      function updatePrefToggle() {
+        const el = $('prefToggle');
+        el.textContent = S.prefs.preferBilingual ? '双语优先' : '热度优先';
+        el.title = S.prefs.preferBilingual
+          ? '当前优先找双语字幕；点击改为按播放量、弹幕量、本家投稿排序'
+          : '当前按播放量、弹幕量、本家投稿排序；点击恢复双语优先';
+        $('preferBilingual').checked = S.prefs.preferBilingual;
+      }
+      $('prefToggle').onclick = () => {
+        S.prefs.preferBilingual = !S.prefs.preferBilingual;
+        S.runPrefer = S.prefs.preferBilingual;
+        savePrefs();
+        updatePrefToggle();
+        toast(
+          (S.prefs.preferBilingual ? '已开启双语优先' : '已关闭双语：按播放/弹幕/本家排序') +
+            (S.running ? '（下一批生效）' : '')
+        );
+      };
+      updatePrefToggle();
+
+      // Electron 隐藏标题栏：给窗口控制区留位置，并支持拖动
+      if (window.bmfApp) document.body.classList.add('electron');
+
+      /** 返回按钮与鼠标侧键共用同一个动作 */
+      function updateBackBtn() {
+        const active = Boolean(S.playlist) || S.running ||
+          $('settings').classList.contains('on') || $('history').classList.contains('on');
+        $('backBtn').disabled = !active;
+      }
+      $('backBtn').onclick = () => window.__appBack?.();
+
+      $('moreBtn').onclick = (e) => { e.stopPropagation(); $('moreMenu').classList.toggle('on'); };
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.more-wrap')) $('moreMenu').classList.remove('on');
       });
+      $('moreMenu').onclick = async (e) => {
+        const b = e.target.closest('button[data-act]');
+        if (!b) return;
+        $('moreMenu').classList.remove('on');
+        const act = b.dataset.act;
+        if (act === 'reload') { location.reload(); return; }
+        if (act === 'cache') {
+          try { await fetch(api('/api/cache/clear'), { method: 'POST' }); toast('缓存已清空'); }
+          catch { toast('清理失败'); }
+          return;
+        }
+        if (!window.bmfApp) { toast('该功能仅在桌面版可用'); return; }
+        if (act === 'logs') window.bmfApp.openLogs();
+        if (act === 'browser') window.bmfApp.openBrowser();
+        if (act === 'fullscreen') window.bmfApp.toggleFullscreen();
+        if (act === 'devtools') window.bmfApp.toggleDevTools();
+        if (act === 'about') window.bmfApp.about();
+        if (act === 'quit') window.bmfApp.quit();
+      };
+      updateBackBtn();
+
+      $('go').onclick = () => start();
+      $('goAll').onclick = () => start(undefined, true);
+      $('stop').onclick = () => { S.auto = false; finish(); $('stMsg').textContent = '已停止'; };
+      $('input').addEventListener('keydown', (e) => { if (e.key === 'Enter') start(); });
+      function bindSamples() {
+        document.querySelectorAll('[data-sample]').forEach((a) => {
+          a.onclick = (e) => { e.preventDefault(); $('input').value = a.dataset.sample; start(a.dataset.sample); };
+        });
+      }
+      bindSamples();
+
+      /** 鼠标侧键/应用内返回：先关弹窗，否则回到“选择歌单”的初始界面 */
+      const EMPTY_DETAIL = $('detail').innerHTML;
+      window.__appBack = () => {
+        if ($('settings').classList.contains('on')) { $('settings').classList.remove('on'); updateBackBtn(); return 'modal'; }
+        if ($('history').classList.contains('on')) { closeHistory(); return 'modal'; }
+        S.auto = false;
+        finish();
+        resetAll();
+        S.filter = 'all';
+        $('filters').querySelectorAll('.chip').forEach((x) => x.classList.toggle('on', x.dataset.f === 'all'));
+        $('plName').textContent = '还没有歌单';
+        $('input').value = '';
+        $('detail').innerHTML = EMPTY_DETAIL;
+        bindSamples();
+        renderRecent();
+        $('input').focus();
+        updateBackBtn();
+        return 'home';
+      };
 
       /* ═══════════════════════════════════════════════════════════
          左栏渲染
@@ -832,6 +995,7 @@
             artist: song.artistText,
             lang: S.results.get(S.selected)?.lang ?? song.lang ?? '',
             extra,
+            preferBilingual: S.runPrefer ? '1' : '0',
           });
           if (song.durationSec) qs.set('duration', String(song.durationSec));
           const j = await (await fetch(api('/api/search?' + qs.toString()))).json();
@@ -900,7 +1064,7 @@
       $('exportAll').onclick = () => {
         const rows = allRows().filter((r) => r.video);
         if (!rows.length) { toast('还没有可导出的结果'); return; }
-        const name = `歌单找MV_${(S.playlist?.name ?? 'playlist').replace(/[\\/:*?"<>|]/g, '_')}.csv`;
+        const name = `寻影姬_${(S.playlist?.name ?? 'playlist').replace(/[\\/:*?"<>|]/g, '_')}.csv`;
         download(name, toCSV(rows));
         toast(`已导出 ${rows.length} 条`);
       };
@@ -977,11 +1141,12 @@
 
       function openHistoryModal() {
         $('history').classList.add('on');
+        updateBackBtn();
         $('histQ').value = '';
         renderHistory();
         setTimeout(() => $('histQ').focus(), 0);
       }
-      function closeHistory() { $('history').classList.remove('on'); }
+      function closeHistory() { $('history').classList.remove('on'); updateBackBtn(); }
 
       async function removeHistory(id) {
         try { await fetch(api('/api/history/delete?id=' + encodeURIComponent(id)), { method: 'POST' }); toast('已从历史中删除'); }
@@ -1010,7 +1175,8 @@
         $('plName').textContent = `《${pl.name}》`;
         $('stTotal').textContent = String(pl.tracks.length);
         $('progBar').style.width = (pl.tracks.length ? (j.results.length / pl.tracks.length) * 100 : 0) + '%';
-        $('stMsg').textContent = `来自历史记录 · ${j.preferBilingual ? '双语优先' : 'MV 优先'}`;
+        $('stMsg').textContent = `来自历史记录 · ${j.preferBilingual ? '双语优先' : '热度优先'}`;
+        updateBackBtn();
         renderList(); renderDetail(); updateStats();
         if (j.results.length < pl.tracks.length) showContinue();
       }
@@ -1034,13 +1200,17 @@
         $('pageSize').value = String(S.prefs.pageSize);
         $('preferBilingual').checked = S.prefs.preferBilingual;
         $('settings').classList.add('on');
+        updateBackBtn();
       }
       $('openSettings').onclick = openSettings;
       $('closeSettings').onclick = () => {
         S.prefs.pageSize = Number($('pageSize').value) || 20;
         S.prefs.preferBilingual = $('preferBilingual').checked;
+        S.runPrefer = S.prefs.preferBilingual;
         savePrefs();
+        updatePrefToggle();
         $('settings').classList.remove('on');
+        updateBackBtn();
         toast('设置已保存（下次匹配生效）');
       };
       $('settings').onclick = (e) => { if (e.target === $('settings')) $('settings').classList.remove('on'); };
@@ -1058,7 +1228,7 @@
         if (e.key === '/' && !typing) { e.preventDefault(); $('input').focus(); $('input').select(); return; }
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e') { e.preventDefault(); $('exportAll').click(); return; }
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') { e.preventDefault(); openHistoryModal(); return; }
-        if (e.key === 'Escape') { $('settings').classList.remove('on'); closeHistory(); return; }
+        if (e.key === 'Escape') { $('settings').classList.remove('on'); closeHistory(); $('moreMenu').classList.remove('on'); return; }
         if (typing) return;
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
           const idxs = visibleIndices();

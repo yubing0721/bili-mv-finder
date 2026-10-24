@@ -4,9 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
     <!-- B站 图床防盗链：带本地地址的 Referer 会 403，不带则正常返回 -->
     <meta name="referrer" content="no-referrer" />
-    <title>歌单找 MV · 网易云 → B站</title>
+    <title>寻影姬 · BiliTune · 网易云 → B站</title>
     <style>
       /* true-black-flat · seed 1114571870
          与桌面版共用令牌：层次只靠明度，强调色只上数据，主操作反白。 */
@@ -86,6 +87,7 @@
       button:disabled { opacity: .45; cursor: not-allowed; }
       button.primary { background: var(--text); border-color: var(--text); color: #000; }
       button.ghost { background: transparent; }
+      button.stop { color: var(--danger); border-color: rgba(229,86,111,.45); }
       button.mini { min-height: 36px; padding: 0 12px; font-size: 13px; font-weight: 500; }
       .samples { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
       .hint { color: var(--faint); font-size: 12px; line-height: 1.65; margin: 12px 0 0; }
@@ -178,8 +180,8 @@
       <div class="head-inner">
         <svg class="logo" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="10" width="4" height="8" rx="1" fill="currentColor" opacity=".45"/><rect x="9" y="5" width="4" height="18" rx="1" fill="currentColor" opacity=".7"/><path d="M17 8l8 6-8 6z" fill="currentColor"/></svg>
         <div class="grow">
-          <h1>歌单找 MV</h1>
-          <div class="sub">网易云 → B站 MV · 优先双语字幕</div>
+          <h1>寻影姬</h1>
+          <div class="sub">BiliTune · 网易云 → B站 MV</div>
         </div>
         <div class="status" id="status"><span class="dot"></span><span id="statusText">检测中</span></div>
       </div>
@@ -192,9 +194,14 @@
           <input type="text" id="input" placeholder="歌单链接 / 分享短链 / 数字 ID" autocomplete="off" />
           <button class="primary" id="go">开始</button>
         </div>
+        <div class="row" style="margin-top:8px">
+          <button id="goAll" style="flex:1" title="自动一批接一批匹配，直到全部完成或点停止">匹配全部</button>
+          <button id="stop" style="display:none;flex:1" class="stop">停止</button>
+        </div>
         <div class="samples">
           <button class="mini" data-sample="3778678">热歌榜</button>
           <button class="mini" data-sample="19723756">飙升榜</button>
+          <button class="mini" id="prefToggle">双语优先</button>
         </div>
         <p class="hint">支持 <code>music.163.com/#/playlist?id=…</code>、App 分享的 <code>163cn.tv</code> 短链，或直接填数字 ID。</p>
 
@@ -202,7 +209,7 @@
           <summary>高级选项</summary>
           <label class="check">
             <input type="checkbox" id="preferBilingual" checked />
-            <span>外语歌优先双语字幕（关闭后纯粹按「最像官方 MV」排序）</span>
+            <span>外语歌优先双语字幕（关闭后改为按播放量、弹幕量、本家投稿排序）</span>
           </label>
           <div class="row" style="margin-top:12px;align-items:center;gap:10px">
             <span class="hint" style="margin:0">每批匹配</span>
@@ -256,10 +263,15 @@
       };
       const NEUTRAL_TAG = 'var(--faint)';
       const NEUTRAL_BG = 'var(--raised)';
-      const BD = { title: '歌名', artist: '歌手', duration: '时长', mv: 'MV', bilingual: '双语', play: '播放', category: '分区', officialUp: '官方' };
+      const BD = { title: '歌名', artist: '歌手', duration: '时长', mv: 'MV', bilingual: '双语', play: '播放', category: '分区', officialUp: '官方', officialMain: '官方正片', penalty: '降权' };
 
       $('origin').textContent = location.origin;
       let es = null, results = [], offset = 0, playlistRef = null, runPrefer = true;
+      let auto = false, startedAt = 0;
+      const setRunning = (on) => {
+        for (const id of ['go', 'goAll']) $(id).style.display = on ? 'none' : '';
+        $('stop').style.display = on ? '' : 'none';
+      };
 
       const toast = (m) => { const t = $('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 1800); };
 
@@ -288,10 +300,14 @@
         $('progText').textContent = '正在读取歌单…'; $('progMeta').textContent = '';
       }
 
-      function start(input) {
+      function start(input, isAuto = false) {
         if (!input) return;
         reset();
+        auto = isAuto;
+        startedAt = Date.now();
         runPrefer = $('preferBilingual').checked;
+        setRunning(true);
+        $('progText').textContent = auto ? '连续匹配中…' : '正在读取歌单…';
         const qs = new URLSearchParams({
           id: input,
           limit: $('pageSize').value,
@@ -301,51 +317,103 @@
         stream(qs);
       }
 
+      function runNextBatch() {
+        setRunning(true);
+        stream(new URLSearchParams({
+          id: playlistRef.id, limit: $('pageSize').value, offset: String(results.length),
+          preferBilingual: runPrefer ? '1' : '0',
+        }));
+      }
+
       function stream(qs) {
-        es = new EventSource('/api/match/stream?' + qs.toString());
-        es.addEventListener('playlist', (e) => {
+        const src = new EventSource('/api/match/stream?' + qs.toString());
+        es = src;
+        src.addEventListener('playlist', (e) => {
+          if (es !== src) return;
           const pl = JSON.parse(e.data);
           playlistRef = pl;
-          $('progText').textContent = `《${pl.name}》 · 共 ${pl.trackCount} 首`;
+          $('progText').textContent = auto
+            ? `《${pl.name}》 · 匹配中`
+            : `《${pl.name}》 · 共 ${pl.trackCount} 首`;
         });
-        es.addEventListener('progress', (e) => {
+        src.addEventListener('progress', (e) => {
+          if (es !== src) return;
           const p = JSON.parse(e.data);
-          $('progBar').style.width = (p.total ? (p.done / p.total) * 100 : 0) + '%';
-          $('progMeta').textContent = `${p.done}/${p.total}`;
+          if (auto && playlistRef) {
+            const total = playlistRef.trackCount || p.total;
+            $('progBar').style.width = Math.min(100, (results.length / total) * 100) + '%';
+            $('progMeta').textContent = `${results.length}/${total}`;
+          } else {
+            $('progBar').style.width = (p.total ? (p.done / p.total) * 100 : 0) + '%';
+            $('progMeta').textContent = `${p.done}/${p.total}`;
+          }
           if (p.done) $('progText').textContent = `《${playlistRef?.name ?? ''}》 · 匹配中`;
         });
-        es.addEventListener('song', (e) => { insert(JSON.parse(e.data)); });
-        es.addEventListener('done', (e) => {
+        src.addEventListener('song', (e) => { if (es === src) insert(JSON.parse(e.data)); });
+        src.addEventListener('done', (e) => {
+          if (es !== src) return;
           const d = JSON.parse(e.data);
+          if (auto && d.hasMore) {
+            const total = playlistRef?.trackCount || 0;
+            $('progBar').style.width = (total ? (results.length / total) * 100 : 0) + '%';
+            $('progMeta').textContent = `${results.length}/${total}`;
+            $('progText').textContent = `《${playlistRef?.name ?? ''}》 · 匹配中`;
+            src.close();
+            es = null;
+            runNextBatch();
+            return;
+          }
           $('progBar').style.width = '100%';
           $('progText').textContent = `《${playlistRef?.name ?? ''}》 · 已完成`;
-          $('progMeta').textContent = `用时 ${(d.elapsedMs / 1000).toFixed(1)}s`;
+          $('progMeta').textContent = `用时 ${((auto ? Date.now() - startedAt : d.elapsedMs) / 1000).toFixed(1)}s`;
           $('more').style.display = d.hasMore ? 'block' : 'none';
           $('moreBtn').textContent = `继续匹配后面 ${Math.min(Number($('pageSize').value), Math.max((playlistRef?.trackCount ?? 0) - results.length, 0))} 首`;
-          if (es) { es.close(); es = null; }
+          src.close();
+          es = null;
+          setRunning(false);
           renderHistory();
         });
-        es.addEventListener('error', (e) => {
+        src.addEventListener('error', (e) => {
+          if (es !== src) return;
           let msg = '连接中断';
           try { msg = JSON.parse(e.data).message; } catch {}
+          auto = false;
           $('progText').textContent = '出错：' + msg;
-          if (es) { es.close(); es = null; }
+          src.close();
+          es = null;
+          setRunning(false);
         });
       }
 
+      function updatePrefToggle() {
+        $('prefToggle').textContent = $('preferBilingual').checked ? '双语优先' : '热度优先';
+      }
+      $('prefToggle').onclick = () => {
+        const box = $('preferBilingual');
+        box.checked = !box.checked;
+        updatePrefToggle();
+        toast(box.checked ? '已开启双语优先' : '已关闭双语：按播放/弹幕/本家排序');
+      };
+      $('preferBilingual').addEventListener('change', updatePrefToggle);
+      updatePrefToggle();
+
       $('go').onclick = () => start($('input').value.trim());
+      $('goAll').onclick = () => start($('input').value.trim(), true);
+      $('stop').onclick = () => {
+        auto = false;
+        if (es) { es.close(); es = null; }
+        setRunning(false);
+        $('progText').textContent = `《${playlistRef?.name ?? ''}》 · 已停止`;
+      };
       $('input').addEventListener('keydown', (e) => { if (e.key === 'Enter') start($('input').value.trim()); });
       document.querySelectorAll('[data-sample]').forEach((b) => {
         b.onclick = () => { $('input').value = b.dataset.sample; start(b.dataset.sample); };
       });
       $('moreBtn').onclick = () => {
         if (!playlistRef) return;
-        const qs = new URLSearchParams({
-          id: playlistRef.id, limit: $('pageSize').value, offset: String(results.length),
-          preferBilingual: runPrefer ? '1' : '0',
-        });
+        auto = false;
         $('more').style.display = 'none';
-        stream(qs);
+        runNextBatch();
       };
       $('clearCache').onclick = async () => {
         try { await fetch('/api/cache/clear', { method: 'POST' }); toast('缓存已清空'); }

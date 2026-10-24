@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "网易云歌单 → B站 MV 匹配服务（含双语字幕优先策略）",
+  "description": "寻影姬 BiliTune：网易云歌单 → B站 MV 匹配服务（含双语字幕优先策略）",
   "main": "src/index.mjs",
   "scripts": {
     "start": "node src/index.mjs",

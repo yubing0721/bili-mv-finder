@@ -36,10 +36,22 @@ export const WEIGHTS = {
    * 只取消「无字幕降权」而保留 30 分权重的话，关掉开关后榜首依旧是带字幕的版本，
    * UI 上那句「纯粹按最像官方 MV 排序」就成了假话。
    */
-  bilingualOff: 6,
+  bilingualOff: 0,
+  /** 默认（双语优先）时的播放量权重 */
   play: 7,
+  /** 关闭双语优先后：播放 / 弹幕 / 本家投稿成为主要信号 */
+  playPriority: 26,
+  danmakuPriority: 12,
+  nativeUpload: 24,
   mvCategory: 4,
-  officialUp: 6,
+  /** 官方账号是强可信来源：明显高于平局决胜，但仍低于歌名/歌手/时长 */
+  officialUp: 26,
+  /** 正规字幕组：可信但不是官方，给中等权重 */
+  officialTrusted: 12,
+  /** 只是账号名带 official/官方 标识，未验证是否与歌曲相关：弱信号 */
+  officialGeneric: 6,
+  /** 官方账号发布的「正片」（有 MV 标识、标题命中、无降权特征）再追加，用于压过饭制/搬运版 */
+  officialMainMv: 22,
 };
 
 /**
@@ -226,6 +238,9 @@ export function scoreCandidate(song, cand, ctx) {
   const artists = [...(song.artists || []), ...(song.artistAliases || [])].filter(Boolean);
   let artistHit = 0;
   let hitArtist = '';
+  /** UP 名与歌手名严格一致（用于「本家投稿」加分，不含粉丝团/搬运号） */
+  let upIsArtist = false;
+  const compactAuthor = compact(cand.author || '');
   const compactTitle = compact(cand.title);
   const compactHay = compact(hay);
   for (const a of artists) {
@@ -257,11 +272,23 @@ export function scoreCandidate(song, cand, ctx) {
       }
     }
     // ③ UP 名就是歌手本人/官方号
-    if (compact(cand.author || '').includes(ca) || fuzzyContains(a, cand.author || '', 0.8) >= 0.8) {
+    if (compactAuthor.includes(ca) || fuzzyContains(a, cand.author || '', 0.8) >= 0.8) {
       if (artistHit < 0.85) {
         artistHit = 0.85;
         hitArtist = a;
       }
+    }
+  }
+  // 本家投稿：单独判断，避免上面的 break 提前退出（标题命中歌手时很常见）。
+  // 必须「长度接近 + 高度相似」才算，不能只看子串 ——
+  // 否则「周杰伦粉丝团」也会被当成歌手本人。
+  for (const a of artists) {
+    const ca = compact(a);
+    if (!ca) continue;
+    const near = compactAuthor.length <= ca.length + 1;
+    if (compactAuthor === ca || (near && fuzzyContains(a, cand.author || '', 0.7) >= 0.7)) {
+      upIsArtist = true;
+      break;
     }
   }
   const artistScore = artistHit * WEIGHTS.artist;
@@ -319,31 +346,72 @@ export function scoreCandidate(song, cand, ctx) {
         noSubPenalty = WEIGHTS.noSubtitlePenalty;
         reasons.push(`无字幕（外语歌降权 -${noSubPenalty}）`);
       }
-    } else {
-      // —— MV 优先模式：字幕只作为很弱的平局决胜因素 ——
-      // 注意不能只取消「无字幕降权」而保留 30 分权重，
-      // 那样关掉开关后榜首依旧是带字幕的版本，UI 上的说明就成了假话。
-      biScore = biHit * WEIGHTS.bilingualOff;
-      if (biHit >= 1) reasons.push('（附带中文字幕）');
-      else if (biHit > 0.5) reasons.push('（附字幕）');
     }
+    // 关闭双语优先时：字幕不参与排序，也不再把双语检索路算进来
   }
 
-  // ---- 6. 播放量（对数缩放，弱信号）----
+  // ---- 6. 播放量 / 弹幕（关闭双语优先后变成主要热度信号）----
   const play = Math.max(0, Number(cand.play) || 0);
-  const playScore = Math.min(WEIGHTS.play, (Math.log10(play + 1) / Math.log10(3_000_000)) * WEIGHTS.play);
+  const playCap = biPreferred ? WEIGHTS.play : WEIGHTS.playPriority;
+  const playScore = Math.min(playCap, (Math.log10(play + 1) / Math.log10(3_000_000)) * playCap);
+
+  const danmaku = Math.max(0, Number(cand.danmaku) || 0);
+  const danmakuScore = biPreferred
+    ? 0
+    : Math.min(WEIGHTS.danmakuPriority, (Math.log10(danmaku + 1) / Math.log10(200_000)) * WEIGHTS.danmakuPriority);
+
+  // 本家投稿：只有关闭双语优先后才加分（默认模式下官方号已经有独立权重）
+  const nativeScore = !biPreferred && upIsArtist ? WEIGHTS.nativeUpload : 0;
+  if (nativeScore) reasons.push('本家投稿（UP 为歌手本人）');
 
   // ---- 7. 分区加成 ----
   const catScore = cand.typename === 'MV' ? WEIGHTS.mvCategory : 0;
 
-  // ---- 8. 官方 UP 加成 ----
-  const officialHitName = matchedOfficialName(cand.author, ctx.officialUps ?? CURATED_OFFICIAL);
-  const upScore = officialHitName ? WEIGHTS.officialUp : 0;
-  if (upScore) reasons.push(`官方/正规来源账号（命中「${officialHitName}」）`);
+  // ---- 8. 官方 UP 加成（分级）----
+  // 名字里带 official 不等于官方：粉丝号「阿赫official」曾因此被顶到第一。
+  // 只有白名单、正规字幕组，或「带 MV 标识且标题命中」的官方账号才拿高分。
+  const curatedOfficial = ctx.officialUps ?? CURATED_OFFICIAL;
+  const officialHitName = matchedOfficialName(cand.author, curatedOfficial);
+  const isCurated = Boolean(officialHitName) && curatedOfficial.has(officialHitName);
+  const isSubtitleGroup = /字幕组|subs?team|中字组|翻译组/i.test(cand.author || '');
+  const neg = negativeSignals(cand.title, song.durationSec, cand.durationSec);
+  let upScore = 0;
+  let officialKind = '';
+  if (officialHitName) {
+    if (isCurated) {
+      upScore = WEIGHTS.officialUp;
+      officialKind = 'curated';
+    } else if (isSubtitleGroup) {
+      upScore = WEIGHTS.officialTrusted;
+      officialKind = 'subtitle';
+    } else if (mv >= 0.9 && titleOnlyHit >= 0.85 && neg.tags.length === 0) {
+      upScore = WEIGHTS.officialUp;
+      officialKind = 'officialMv';
+    } else {
+      upScore = WEIGHTS.officialGeneric;
+      officialKind = 'handle';
+    }
+  }
+  if (upScore) {
+    reasons.push(
+      officialKind === 'curated' || officialKind === 'officialMv'
+        ? `官方账号（命中「${officialHitName}」）`
+        : officialKind === 'subtitle'
+          ? '正规字幕组账号'
+          : '账号名含官方标识（弱信号）'
+    );
+  }
 
   // ---- 9. 负向 ----
-  const neg = negativeSignals(cand.title, song.durationSec, cand.durationSec);
   if (neg.tags.length) reasons.push(`降权: ${[...new Set(neg.tags)].join('/')}`);
+
+  // ---- 9b. 官方正片追加 ----
+  // 只给「官方账号 + 标题有 MV 标识 + 歌名命中 + 没有任何降权特征」的候选，
+  // 避免官方发的钢琴版、巡演片段、预告也被一并抬高。
+  const officialMain = upScore === WEIGHTS.officialUp && mv >= 0.9 && titleOnlyHit >= 0.85 && neg.tags.length === 0
+    ? WEIGHTS.officialMainMv
+    : 0;
+  if (officialMain) reasons.push('官方账号发布的官方影像');
 
   // ---- 10. 标题完全没命中歌名 → 几乎肯定不是 ----
   // 用 titleOnlyHit 而不是 bestNameHit：标题里压根没有歌名的内容，
@@ -359,8 +427,11 @@ export function scoreCandidate(song, cand, ctx) {
     mvScore +
     biScore +
     playScore +
+    danmakuScore +
+    nativeScore +
     catScore +
-    upScore -
+    upScore +
+    officialMain -
     neg.penalty -
     hardPenalty -
     noSubPenalty -
@@ -384,8 +455,11 @@ export function scoreCandidate(song, cand, ctx) {
       mv: Number(safe(mvScore).toFixed(1)),
       bilingual: Number(safe(biScore).toFixed(1)),
       play: Number(safe(playScore).toFixed(1)),
+      danmaku: Number(safe(danmakuScore).toFixed(1)),
+      nativeUpload: nativeScore,
       category: catScore,
       officialUp: upScore,
+      officialMain,
       penalty: Number((neg.penalty + hardPenalty + noSubPenalty + quotePenalty).toFixed(1)),
       noSubtitle: noSubPenalty,
       quote: quotePenalty,
@@ -408,20 +482,17 @@ for (const [k, v] of Object.entries(WEIGHTS)) {
 
 /** 该歌曲理论上能拿到的最高分，用于归一化出置信度 */
 export function maxScoreFor(lang, preferBilingual = true) {
-  const bi = needsBilingual(lang)
-    ? preferBilingual
-      ? WEIGHTS.bilingual + WEIGHTS.bilingualQueryBonus + 3
-      : WEIGHTS.bilingualOff
-    : 0;
+  const bi = needsBilingual(lang) && preferBilingual ? WEIGHTS.bilingual + WEIGHTS.bilingualQueryBonus + 3 : 0;
   return (
     WEIGHTS.title +
     WEIGHTS.artist +
     WEIGHTS.duration +
     WEIGHTS.mv +
     bi +
-    WEIGHTS.play +
+    (preferBilingual ? WEIGHTS.play : WEIGHTS.playPriority + WEIGHTS.danmakuPriority + WEIGHTS.nativeUpload) +
     WEIGHTS.mvCategory +
-    WEIGHTS.officialUp
+    WEIGHTS.officialUp +
+    WEIGHTS.officialMainMv
   );
 }
 
@@ -446,9 +517,11 @@ export async function matchSong(bili, song, opts = {}) {
   const lang = detected.lang;
   const foreign = needsBilingual(lang);
 
-  let queries = buildQueries(song, lang, { bilingualFirst: foreign });
+  let queries = buildQueries(song, lang, { bilingualFirst: foreign && preferBilingual });
+  // 关闭双语优先时不再消耗请求预算在双语检索路上，改由基础/MV/官方路召回
+  if (!preferBilingual) queries = queries.filter((q) => !q.kind.startsWith('bilingual'));
   // 双语优先：外语歌优先跑双语路，保证有限请求预算花在关键检索上
-  if (foreign && maxQueries) {
+  if (foreign && preferBilingual && maxQueries) {
     const bi = queries.filter((q) => q.kind.startsWith('bilingual'));
     const rest = queries.filter((q) => !q.kind.startsWith('bilingual'));
     queries = [...bi, ...rest];
@@ -559,7 +632,7 @@ export async function matchSong(bili, song, opts = {}) {
 }
 
 /** 单曲手动搜索（App 里「换一个」时用），不做多路融合，直接给重排后的候选 */
-export async function searchCandidates(bili, { title, artists = [], durationSec = null, lang, topN = 12, extraKeyword = '' }) {
+export async function searchCandidates(bili, { title, artists = [], durationSec = null, lang, topN = 12, extraKeyword = '', preferBilingual = true }) {
   const song = {
     id: 'manual',
     title,
@@ -579,14 +652,14 @@ export async function searchCandidates(bili, { title, artists = [], durationSec 
         lang: detected.lang,
         queryKind: 'base',
         sources: ['base'],
-        preferBilingual: true,
+        preferBilingual,
       }),
     }))
     .sort((a, b) => b.score - a.score)
     .slice(0, topN)
     .map((c) => ({
       ...c,
-      confidence: confidenceOf(c.score, detected.lang, c.nameHit, true),
+      confidence: confidenceOf(c.score, detected.lang, c.nameHit, preferBilingual),
       durationText: c.durationText || formatDuration(c.durationSec),
     }));
   return { song, lang: detected.lang, best: scored[0] ?? null, candidates: scored };

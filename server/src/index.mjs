@@ -337,15 +337,17 @@ const server = http.createServer(async (req, res) => {
       const durationSec = Number(url.searchParams.get('duration')) || null;
       const lang = url.searchParams.get('lang') ?? undefined;
       const extraKeyword = url.searchParams.get('extra') ?? '';
-      const key = `search:v1:${title}:${artists.join(',')}:${durationSec}:${lang}:${extraKeyword}`;
-      const r = await cache.wrap(key, () => searchCandidates(bili, { title, artists, durationSec, lang, extraKeyword, topN: 14 }));
+      // 与匹配流程一致：关闭双语优先后，手动重搜也按热度/本家排序
+      const preferBilingual = url.searchParams.get('preferBilingual') !== '0';
+      const key = `search:v2:${title}:${artists.join(',')}:${durationSec}:${lang}:${extraKeyword}:${preferBilingual ? 'b' : 'n'}`;
+      const r = await cache.wrap(key, () => searchCandidates(bili, { title, artists, durationSec, lang, extraKeyword, preferBilingual, topN: 14 }));
       return sendJSON(res, 200, {
         song: r.song,
         lang: r.lang,
         langLabel: LANG_LABEL[r.lang],
         best: r.best ? publicCandidate(r.best) : null,
         candidates: r.candidates.map(publicCandidate),
-        maxScore: maxScoreFor(r.lang),
+        maxScore: maxScoreFor(r.lang, preferBilingual),
       });
     }
 
@@ -518,7 +520,7 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   const nets = Object.values(import.meta.url ? {} : {});
   void nets;
-  console.log(`\n  🎬 Bili MV Finder 服务已启动`);
+  console.log(`\n  🎬 寻影姬 BiliTune 服务已启动`);
   console.log(`     本机:   http://127.0.0.1:${PORT}`);
   console.log(`     局域网: http://<你的电脑IP>:${PORT}   ← 手机 App 填这个`);
   console.log(`     缓存:   ${CACHE_DIR}`);

@@ -1,7 +1,8 @@
 /**
  * 官方 / 唱片公司 / 正规字幕组账号识别。
  *
- * 只作为平局决胜信号使用，权重很低（+6），不会喧宾夺主。
+ * 官方账号是强可信来源（+26，官方正片再 +22），用于压过同名搬运/饭制版本，
+ * 但仍低于歌名、歌手、时长这些硬条件，避免把官方发的花絮/预告顶到正片前面。
  *
  * 实测踩过的坑：
  *   1. 用精确集合匹配会漏 —— 曲库里写「索尼音乐」，实际 UP 叫「索尼音乐中国」，
@@ -40,7 +41,7 @@ export const OFFICIAL_UP_NAMES = [
  *      以 Official 开头的真实官方名（如 Official髭男dism）走白名单。
  */
 export const OFFICIAL_UP_PATTERN =
-  /官方|唱片|records?\b|entertainment|字幕组|subs?team|中字组|翻译组|official\s*$/im;
+  /官方|公式|唱片|records?\b|entertainment|字幕组|subs?team|中字组|翻译组|(?:^|[\s_\-·.])official\s*$/im;
 
 /**
  * 归一化：转小写后去掉所有非字母数字/汉字/假名/谚文字符。
@@ -106,8 +107,11 @@ export function matchedOfficialName(author, curated) {
       if (officialNameMatches(c, name)) return name;
     }
   }
+  // "unofficial" 也以 official 结尾，不能算官方；白名单命中的除外（上面已返回）
+  if (/unofficial/i.test(author)) return null;
   const m = String(author).match(OFFICIAL_UP_PATTERN);
-  return m ? m[0] : null;
+  // 去掉用于界定边界的 _ - · . 前缀，只返回可读的标识
+  return m ? m[0].replace(/^[\s_\-·.]+/, '') : null;
 }
 
 /** 布尔版本 */
