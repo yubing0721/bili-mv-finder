@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-title 歌单找 MV
+title 寻影姬 BiliTune
 
 rem ─────────────────────────────────────────────────────────────
 rem  如果环境里带着 ELECTRON_RUN_AS_NODE，Electron 会以纯 Node 模式启动而崩溃。
