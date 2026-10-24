@@ -7,228 +7,315 @@
     <meta name="referrer" content="no-referrer" />
     <title>歌单找 MV · 桌面版</title>
     <style>
+      /* true-black-flat · seed 1114571870
+         层次只靠明度：ground #000 → surface #111 → raised #1a1a1a；卡片无边框无阴影。
+         强调色（B站粉）只出现在数据标记上，主操作反白。 */
       :root {
-        --bg: #0e0f13;
-        --bg-2: #14161c;
-        --panel: #191c24;
-        --card: #20242e;
-        --card-hi: #272c38;
-        --border: #2b3040;
-        --text: #f0f2f7;
-        --dim: #a0a8b8;
-        --faint: #6b7383;
-        --primary: #fb7299;
-        --primary-soft: rgba(251, 114, 153, 0.15);
-        --accent: #23ade5;
-        --accent-soft: rgba(35, 173, 229, 0.15);
-        --success: #3dd68c;
-        --success-soft: rgba(61, 214, 140, 0.14);
-        --warn: #f5a623;
-        --warn-soft: rgba(245, 166, 35, 0.14);
-        --danger: #f5544e;
-        --danger-soft: rgba(245, 84, 78, 0.14);
-        --radius: 10px;
-        --row-h: 62px;
+        --ground: #000000;
+        --surface: #111111;
+        --raised: #1a1a1a;
+        --active: #222222;
+        --rule: #1a1a1a;
+        --control: #2e2e2e;
+        --control-hi: #444444;
+        --text: #ffffff;
+        --muted: #b4b4b4;
+        --faint: #949494;
+        --accent: #fb7299;
+        --accent-soft: rgba(251, 114, 153, 0.16);
+        --positive: #3fc07a;
+        --positive-soft: rgba(63, 192, 122, 0.14);
+        --warn: #f2b33d;
+        --warn-soft: rgba(242, 179, 61, 0.14);
+        --danger: #e5566f;
+        --danger-soft: rgba(229, 86, 111, 0.14);
+        --radius-card: 8px;
+        --radius-control: 6px;
+        --radius-chip: 4px;
+        --gap: 16px;
+        --pad: 24px;
+        --font: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+        --num: "Bahnschrift", "Segoe UI", "Microsoft YaHei UI", sans-serif;
       }
       * { box-sizing: border-box; }
       html, body { margin: 0; height: 100%; overflow: hidden; }
       body {
-        background: var(--bg);
+        background: var(--ground);
         color: var(--text);
-        font: 13.5px/1.55 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+        font: 14px/1.5 var(--font);
         display: grid;
-        grid-template-rows: auto 1fr auto;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto 1fr 36px;
         height: 100vh;
+        -webkit-font-smoothing: antialiased;
       }
+      .num { font-family: var(--num); font-variant-numeric: tabular-nums; }
       ::-webkit-scrollbar { width: 10px; height: 10px; }
       ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb { background: #333a4a; border-radius: 6px; border: 2px solid var(--bg); }
-      ::-webkit-scrollbar-thumb:hover { background: #414a5e; }
+      ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 5px; border: 2px solid var(--ground); }
+      ::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+      :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+      ::selection { background: var(--accent-soft); color: var(--text); }
 
-      /* ══════════════ 顶栏 ══════════════ */
+      /* ══════════ 顶栏：64px，只承载真实内容 ══════════ */
       header {
-        display: flex; align-items: center; gap: 12px;
-        padding: 11px 16px;
-        background: var(--bg-2);
-        border-bottom: 1px solid var(--border);
+        display: flex; align-items: center; gap: 14px; min-height: 64px; min-width: 0;
+        padding: 0 24px;
+        border-bottom: 1px solid var(--rule);
       }
-      .logo {
-        width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0;
-        background: linear-gradient(135deg, var(--primary), var(--accent));
-        display: grid; place-items: center; font-size: 15px;
-      }
-      .brand { font-size: 14.5px; font-weight: 700; white-space: nowrap; }
-      .brand small { display: block; font-size: 10.5px; color: var(--faint); font-weight: 500; }
-      .sep { width: 1px; height: 24px; background: var(--border); }
+      .logo { width: 28px; height: 28px; flex-shrink: 0; color: var(--accent); }
+      .brand { white-space: nowrap; }
+      .brand h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+      .brand small { display: block; font-size: 12px; color: var(--faint); font-weight: 400; margin-top: 1px; }
+      .sep { width: 1px; height: 28px; background: var(--rule); }
 
-      .search { display: flex; gap: 8px; flex: 1; min-width: 0; max-width: 620px; }
+      .search { display: flex; gap: 8px; flex: 1; min-width: 0; max-width: 640px; }
       input[type=text], select, textarea {
-        background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
-        color: var(--text); font: inherit; padding: 7px 11px; outline: none; min-width: 0;
+        background: var(--surface); border: 1px solid var(--control); border-radius: var(--radius-control);
+        color: var(--text); font: inherit; font-size: 13px; padding: 0 12px; height: 36px; outline: none; min-width: 0;
       }
-      input[type=text]:focus, select:focus, textarea:focus { border-color: var(--primary); }
+      input[type=text]:focus, select:focus, textarea:focus { border-color: var(--text); }
       input::placeholder { color: var(--faint); }
       .search input { flex: 1; }
       button {
-        background: var(--card); color: var(--text); border: 1px solid var(--border);
-        border-radius: 8px; padding: 7px 13px; font: inherit; font-weight: 600;
-        cursor: pointer; white-space: nowrap; transition: background .12s, transform .06s;
+        height: 36px; padding: 0 16px;
+        background: var(--surface); color: var(--text);
+        border: 1px solid var(--control); border-radius: 999px;
+        font: inherit; font-size: 13px; font-weight: 600;
+        cursor: pointer; white-space: nowrap;
+        transition: background .12s, border-color .12s;
       }
-      button:hover { background: var(--card-hi); }
-      button:active { transform: scale(.975); }
-      button:disabled { opacity: .4; cursor: not-allowed; }
-      button.primary { background: var(--primary); border-color: var(--primary); color: #171018; }
-      button.primary:hover { background: #ff85a8; }
-      button.ghost { background: transparent; border-color: transparent; color: var(--dim); }
-      button.ghost:hover { background: var(--card); color: var(--text); }
-      button.mini { padding: 4px 9px; font-size: 11.5px; border-radius: 6px; }
+      button:hover { background: var(--raised); border-color: var(--control-hi); }
+      button:active { background: var(--active); }
+      button:disabled { opacity: .45; cursor: not-allowed; }
+      button.primary { background: var(--text); border-color: var(--text); color: #000; }
+      button.primary:hover { background: #e8e8e8; border-color: #e8e8e8; }
+      button.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+      button.ghost:hover { background: var(--surface); color: var(--text); }
+      button.mini { height: 28px; padding: 0 11px; font-size: 12px; }
+      button.text { border-color: transparent; background: transparent; color: var(--muted); padding: 0 8px; }
+      button.text:hover { color: var(--text); background: var(--surface); }
 
       .right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
-      .conn { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--dim); white-space: nowrap; }
+      .conn { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); white-space: nowrap; }
       .conn i { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); display: block; }
-      .conn.ok i { background: var(--success); box-shadow: 0 0 7px var(--success); }
+      .conn.ok i { background: var(--positive); }
       .conn.fail i { background: var(--danger); }
 
-      /* ══════════════ 主体：主从两栏 ══════════════ */
-      main { display: grid; grid-template-columns: 392px 1fr; min-height: 0; }
-      .pane { min-height: 0; display: flex; flex-direction: column; }
-      .pane.left { border-right: 1px solid var(--border); background: var(--bg-2); }
+      /* ══════════ 主体：主从两栏，一条 1px 规则分隔 ══════════ */
+      main { display: grid; grid-template-columns: 360px minmax(0, 1fr); min-height: 0; min-width: 0; }
+      .pane { min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+      .pane.left { border-right: 1px solid var(--rule); }
 
       .pane-bar {
-        display: flex; align-items: center; gap: 8px;
-        padding: 8px 12px; border-bottom: 1px solid var(--border);
-        font-size: 11.5px; color: var(--dim); flex-shrink: 0;
+        display: flex; align-items: center; gap: 10px;
+        padding: 16px 20px 12px; flex-shrink: 0;
       }
-      .pane-bar .title { font-weight: 700; color: var(--text); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .chips { display: flex; gap: 4px; margin-left: auto; }
+      .pane-bar .title {
+        margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .pane-bar .meta { font-size: 13px; color: var(--faint); white-space: nowrap; }
+
+      /* 计数卡：既是筛选，也是这一屏的数量答案 */
+      .counts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 0 20px 14px; }
       .chip {
-        font-size: 11px; padding: 3px 8px; border-radius: 99px; cursor: pointer;
-        border: 1px solid transparent; color: var(--faint); background: transparent; font-weight: 600;
+        display: block; min-width: 0; height: 56px; padding: 8px 10px; text-align: left;
+        background: var(--surface); border: 1px solid transparent; border-radius: var(--radius-card);
+        color: var(--faint); font-size: 12px; font-weight: 400;
       }
-      .chip:hover { color: var(--dim); background: var(--card); }
-      .chip.on { color: var(--text); background: var(--card); border-color: var(--border); }
+      .chip:hover { background: var(--raised); color: var(--muted); border-color: transparent; }
+      .chip .n { display: block; margin-top: 2px; font-family: var(--num); font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 600; color: var(--text); }
+      .chip.on { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
 
       .scroll { overflow-y: auto; flex: 1; min-height: 0; }
 
       /* ---------- 左：歌曲列表 ---------- */
       .song {
-        display: grid; grid-template-columns: 30px 1fr auto; gap: 9px;
-        align-items: center; padding: 8px 12px; min-height: var(--row-h);
-        border-bottom: 1px solid rgba(43, 48, 64, .5); cursor: pointer;
-        border-left: 3px solid transparent;
+        display: grid; grid-template-columns: 26px 1fr auto; gap: 10px;
+        align-items: start; padding: 10px 20px; min-height: 64px;
+        border-bottom: 1px solid var(--rule); cursor: pointer;
       }
-      .song:hover { background: var(--panel); }
-      .song.on { background: var(--primary-soft); border-left-color: var(--primary); }
-      .song .no { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; text-align: right; }
-      .song .t { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .song .a { font-size: 11px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
-      .song .m { font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
-      .song .m.bi { color: var(--success); }
-      .song .r { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+      .song:hover { background: var(--surface); }
+      .song.on { background: var(--active); }
+      .song .no { font-family: var(--num); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--faint); text-align: right; padding-top: 2px; }
+      .song .t { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .song .a { font-size: 13px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
+      .song .m { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 3px; }
+      .song .m.bi { color: var(--accent); }
+      .song .r { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; padding-top: 1px; }
       .dot { width: 7px; height: 7px; border-radius: 50%; }
-      .lang { font-size: 9.5px; font-weight: 800; padding: 1px 5px; border-radius: 99px; }
+      .lang { font-size: 13px; font-weight: 500; color: var(--faint); white-space: nowrap; }
       .pending { color: var(--faint); font-size: 11px; }
-      .spin { width: 11px; height: 11px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: sp .7s linear infinite; }
+      .spin { width: 11px; height: 11px; border: 1.5px solid var(--control); border-top-color: var(--muted); border-radius: 50%; animation: sp .8s linear infinite; }
       @keyframes sp { to { transform: rotate(360deg); } }
 
       /* ---------- 右：详情 ---------- */
-      .detail { padding: 16px 20px 28px; }
-      .empty-hint { display: grid; place-items: center; height: 100%; color: var(--faint); text-align: center; gap: 8px; }
-      .empty-hint .big { font-size: 34px; opacity: .5; }
+      .detail { padding: 20px 24px 28px; }
+      .empty-hint { display: grid; place-items: center; height: 100%; color: var(--faint); text-align: center; gap: 10px; }
+      .empty-hint .big { font-size: 13px; color: var(--muted); font-weight: 600; letter-spacing: .02em; }
       .empty-hint kbd {
-        background: var(--card); border: 1px solid var(--border); border-bottom-width: 2px;
-        border-radius: 5px; padding: 1px 6px; font-size: 11px; font-family: inherit; color: var(--dim);
+        background: var(--surface); border: 1px solid var(--control); border-radius: var(--radius-chip);
+        padding: 1px 6px; font-size: 11px; font-family: var(--font); color: var(--muted);
       }
+      .empty-hint a { color: var(--text); }
 
-      .d-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
-      .d-title { font-size: 20px; font-weight: 800; letter-spacing: .2px; }
-      .d-sub { color: var(--faint); font-size: 12.5px; margin-top: 3px; }
-      .badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
-      .badge { font-size: 10.5px; font-weight: 800; padding: 3px 8px; border-radius: 99px; }
+      .d-head { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px; }
+      .d-cover { width: 56px; height: 56px; object-fit: cover; border-radius: var(--radius-chip); background: var(--surface); flex-shrink: 0; }
+      .d-title { font-size: 20px; overflow-wrap: anywhere; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; }
+      .d-sub { color: var(--faint); font-size: 13px; margin-top: 3px; }
+      .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; }
+      .badge { font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: var(--radius-chip); background: var(--surface); color: var(--muted); white-space: nowrap; }
+      .badge.bi { background: var(--accent-soft); color: var(--accent); }
+      .badge.best { background: var(--accent-soft); color: var(--accent); }
+      .badge.warn { background: var(--warn-soft); color: var(--warn); }
+      .badge.neg { background: transparent; color: var(--danger); padding-left: 0; padding-right: 0; }
 
-      .cand { display: flex; gap: 13px; padding: 11px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 9px; cursor: pointer; }
-      .cand:hover { background: var(--card); border-color: #39405a; }
-      .cand.best { border-color: rgba(251, 114, 153, .5); background: linear-gradient(180deg, rgba(251,114,153,.07), transparent); }
-      .cand img { width: 152px; height: 86px; object-fit: cover; border-radius: 7px; background: var(--card); flex-shrink: 0; }
-      .cand .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
-      .cand .ct { font-size: 13.5px; font-weight: 600; line-height: 1.4; }
-      .cand .cm { font-size: 11.5px; color: var(--faint); display: flex; gap: 8px; flex-wrap: wrap; }
-      .cand .score { margin-left: auto; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
-      .cand .acts { display: flex; gap: 6px; margin-top: auto; }
+      .cand {
+        display: flex; gap: 14px; padding: 14px;
+        background: var(--surface); border-radius: var(--radius-card);
+        margin-bottom: 8px; cursor: pointer; border: 1px solid transparent;
+      }
+      .cand:hover { background: var(--raised); }
+      .cand.best { border-color: var(--accent); }
+      .cand img { width: 152px; height: 86px; object-fit: cover; border-radius: var(--radius-chip); background: var(--raised); flex-shrink: 0; }
+      .cand .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+      .cand .rank { display: inline-block; margin-right: 8px; color: var(--faint); font-weight: 600; }
+      .cand .ct { font-size: 14px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+      .cand .cm { font-size: 13px; color: var(--faint); display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; min-width: 0; overflow-wrap: anywhere; }
+      .cand .cm span { min-width: 0; }
+      .cand .cm .num { font-size: 12px; }
+      .cand .score { margin-left: auto; font-family: var(--num); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--muted); }
+      .cand .acts { display: flex; gap: 8px; margin-top: auto; padding-top: 4px; }
 
-      .sect { margin-top: 18px; }
-      .sect > h3 { font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: .06em; margin: 0 0 8px; font-weight: 800; }
-      .reasons { display: flex; flex-wrap: wrap; gap: 6px; }
-      .reason { font-size: 11.5px; background: var(--card); border: 1px solid var(--border); border-radius: 7px; padding: 4px 9px; color: var(--dim); }
-      .reason.neg { color: var(--danger); border-color: rgba(245,84,78,.3); }
-      .reason.pos { color: var(--success); border-color: rgba(61,214,140,.3); }
+      /* 匹配尺：这一屏独有的元素，把得分构成画成一条可读的尺 */
+      .ruler { margin-top: 2px; }
+      .ruler .bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--raised); }
+      .ruler .bar i { display: block; height: 100%; }
+      .ruler .bar i.pos { background: var(--accent); opacity: .85; }
+      .ruler .bar i.pos2 { background: var(--accent); opacity: .55; }
+      .ruler .bar i.pos3 { background: var(--accent); opacity: .35; }
+      .ruler .bar i.neg { background: var(--danger); }
+      .ruler .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; font-size: 12px; color: var(--faint); }
+      .ruler .legend b { font-family: var(--num); font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 600; }
+      .ruler .legend b.neg { color: var(--danger); }
+
+      .sect { margin-top: 22px; }
+      .sect > h3 { font-size: 13px; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+      .reasons { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+      .reason { font-size: 13px; color: var(--muted); }
+      .reason.neg { color: var(--danger); }
+      .reason.pos { color: var(--muted); }
 
       .reseach { display: flex; gap: 8px; margin-top: 8px; }
       .reseach input { flex: 1; }
 
-      .kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 18px; }
-      .kv .k { font-size: 10.5px; color: var(--faint); font-weight: 700; }
-      .kv .v { font-size: 12.5px; word-break: break-all; }
-      pre.desc { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 11.5px; color: var(--dim); white-space: pre-wrap; max-height: 130px; overflow: auto; margin: 0; font-family: inherit; }
+      .kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px 20px; }
+      .kv .k { font-size: 12px; color: var(--faint); font-weight: 500; }
+      .kv .v { font-size: 13px; word-break: break-all; font-variant-numeric: tabular-nums; }
+      pre.desc { background: var(--surface); border-radius: var(--radius-card); padding: 12px; font-size: 12px; color: var(--muted); white-space: pre-wrap; max-height: 130px; overflow: auto; margin: 0; font-family: var(--font); }
 
       /* ---------- 底栏 ---------- */
       footer {
-        display: flex; align-items: center; gap: 14px;
-        padding: 7px 16px; background: var(--bg-2); border-top: 1px solid var(--border);
-        font-size: 11.5px; color: var(--faint);
+        display: flex; align-items: center; gap: 18px; min-width: 0;
+        padding: 0 24px; border-top: 1px solid var(--rule);
+        font-size: 12px; color: var(--faint);
       }
-      .stat b { color: var(--text); font-weight: 700; }
-      .stat.bi b { color: var(--success); }
-      .prog { flex: 1; max-width: 260px; height: 5px; background: var(--border); border-radius: 99px; overflow: hidden; }
-      .prog > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: width .3s; }
+      .stat { white-space: nowrap; }
+      .stat b { color: var(--text); font-family: var(--num); font-variant-numeric: tabular-nums; font-weight: 600; }
+      .stat.bi b { color: var(--accent); }
+      .prog { flex: 1; max-width: 240px; height: 2px; background: var(--active); overflow: hidden; }
+      .prog > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
 
       /* ---------- 弹窗 ---------- */
-      .modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; place-items: center; z-index: 50; }
+      .modal { position: fixed; inset: 0; background: rgba(0,0,0,.72); display: none; place-items: center; z-index: 50; }
       .modal.on { display: grid; }
-      .modal .box { background: var(--bg-2); border: 1px solid var(--border); border-radius: 14px; padding: 20px; width: 460px; max-width: 92vw; }
-      .modal h2 { margin: 0 0 14px; font-size: 15px; }
-      .field { margin-bottom: 14px; }
-      .field label { display: block; font-size: 11.5px; color: var(--dim); margin-bottom: 5px; font-weight: 700; }
+      .modal .box { background: var(--surface); border-radius: 12px; padding: 24px; width: 480px; max-width: 92vw; box-shadow: 0 16px 48px rgba(0,0,0,.5); }
+      .modal .box.wide { width: 640px; }
+      .modal h2 { margin: 0 0 16px; font-size: 17px; font-weight: 600; }
+      .field { margin-bottom: 16px; }
+      .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 7px; font-weight: 500; }
       .field input[type=text] { width: 100%; }
-      .field .hint { font-size: 11px; color: var(--faint); margin-top: 5px; line-height: 1.5; }
-      .check { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--dim); cursor: pointer; }
-      .check input { width: 16px; height: 16px; accent-color: var(--primary); }
-      .modal .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+      .field .hint { font-size: 12px; color: var(--faint); margin-top: 6px; line-height: 1.6; }
+      .check { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); cursor: pointer; }
+      .check input { width: 16px; height: 16px; accent-color: var(--text); }
+      .modal .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
 
       .toast {
-        position: fixed; left: 50%; bottom: 46px; transform: translateX(-50%) translateY(10px);
-        background: #22262f; border: 1px solid var(--border); border-radius: 99px;
-        padding: 9px 20px; font-size: 12.5px; font-weight: 600; opacity: 0; pointer-events: none;
-        transition: opacity .18s, transform .18s; z-index: 90;
+        position: fixed; left: 50%; bottom: 52px; transform: translateX(-50%) translateY(8px);
+        background: var(--raised); border-radius: var(--radius-control);
+        padding: 9px 18px; font-size: 13px; font-weight: 500; color: var(--text);
+        opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; z-index: 90;
       }
       .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
-      a { color: var(--accent); }
+      a { color: var(--text); }
 
       /* ---------- 历史 ---------- */
-      .modal .box.wide { width: 620px; }
-      #histQ { width: 100%; margin-bottom: 10px; }
+      #histQ { width: 100%; margin-bottom: 12px; }
       .hist-list { max-height: 56vh; overflow-y: auto; margin: 0 -6px; }
-      .hist { display: flex; align-items: center; gap: 11px; padding: 8px 6px; border-radius: 8px; cursor: pointer; text-align: left; }
-      .hist:hover { background: var(--card); }
-      .hist img { width: 44px; height: 44px; border-radius: 7px; object-fit: cover; background: var(--card); flex-shrink: 0; }
+      .hist { display: flex; align-items: center; gap: 12px; padding: 10px 6px; border-radius: var(--radius-control); cursor: pointer; text-align: left; }
+      .hist:hover { background: var(--raised); }
+      .hist img { width: 40px; height: 40px; border-radius: var(--radius-chip); object-fit: cover; background: var(--raised); flex-shrink: 0; }
       .hist .hb { flex: 1; min-width: 0; }
-      .hist .hn { font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .hist .hm { font-size: 11px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
-      .hist .hm b { color: var(--success); font-weight: 600; }
+      .hist .hn { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .hist .hm { font-size: 12px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+      .hist .hm b { color: var(--accent); font-weight: 600; }
       .hist .ha { display: flex; gap: 4px; opacity: 0; transition: opacity .12s; }
       .hist:hover .ha { opacity: 1; }
-      .hist-empty { color: var(--faint); text-align: center; padding: 26px 0; font-size: 12.5px; }
-      #recent { width: 360px; max-width: 80%; margin-top: 6px; }
-      #recent .hist { padding: 6px; }
-      #recent .hist img { width: 34px; height: 34px; }
-      #recent h4 { margin: 0 0 4px; font-size: 11px; color: var(--faint); font-weight: 700; text-align: left; }
-    </style>
+      .hist-empty { color: var(--faint); text-align: center; padding: 28px 0; font-size: 13px; }
+      #recent { width: 380px; max-width: 84%; margin-top: 8px; }
+      #recent .hist { padding: 8px 6px; }
+      #recent .hist img { width: 32px; height: 32px; }
+      #recent h4 { margin: 0 0 4px; font-size: 12px; color: var(--faint); font-weight: 500; text-align: left; }
+
+
+      /* 平板与手机：先收窄左栏，再改为上下堆叠 */
+      @media (max-width: 1100px) {
+        main { grid-template-columns: 320px minmax(0, 1fr); }
+        .cand img { width: 120px; height: 68px; }
+        .detail { padding: 18px 20px 24px; }
+      }
+      @media (max-width: 1000px) {
+        header { flex-wrap: wrap; height: auto; padding: 10px 18px; gap: 8px 12px; }
+        .right { gap: 6px; }
+        .conn span { display: block; max-width: 112px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .brand small { display: none; }
+        .search { order: 3; flex: 1 1 100%; max-width: none; }
+      }
+      @media (max-width: 860px) {
+        main { grid-template-columns: 280px minmax(0, 1fr); }
+        .cand { gap: 10px; padding: 12px; }
+        .cand img { width: 96px; height: 56px; }
+      }
+      @media (max-width: 720px) {
+        html, body { height: auto; overflow: auto; }
+        body { grid-template-rows: auto auto 1fr auto; min-height: 100vh; }
+        header { flex-wrap: wrap; height: auto; padding: 12px 18px; gap: 10px; }
+        .brand small { display: none; }
+        .sep { display: none; }
+        .search { order: 3; flex: 1 1 100%; max-width: none; }
+        .right { margin-left: auto; }
+        main { display: block; }
+        .pane.left { border-right: 0; border-bottom: 1px solid var(--rule); max-height: 48vh; }
+        .pane-bar { padding: 14px 18px 10px; }
+        .counts { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 18px 12px; }
+        .song { padding: 10px 18px; }
+        .song .a, .song .m { white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .detail { padding: 16px 18px 24px; }
+        footer { flex-wrap: wrap; height: auto; padding: 10px 18px; gap: 10px 16px; }
+        .prog { order: 5; flex: 1 1 100%; max-width: none; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+      }
+</style>
   </head>
   <body>
     <!-- ══════ 顶栏 ══════ -->
     <header>
-      <div class="logo">🎬</div>
-      <div class="brand">歌单找 MV<small>网易云 → B站 · 外语歌优先双语字幕</small></div>
+      <svg class="logo" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="10" width="4" height="8" rx="1" fill="currentColor" opacity=".45"/><rect x="9" y="5" width="4" height="18" rx="1" fill="currentColor" opacity=".7"/><path d="M17 8l8 6-8 6z" fill="currentColor"/></svg>
+      <div class="brand"><h2>歌单找 MV</h2><small>网易云 → B站 · 外语歌优先双语字幕</small></div>
       <div class="sep"></div>
 
       <div class="search">
@@ -239,8 +326,8 @@
 
       <div class="right">
         <div class="conn" id="conn"><i></i><span id="connText">检测中…</span></div>
-        <button class="ghost mini" id="openHistory" title="看过的歌单（Ctrl+H）">🕘 历史</button>
-        <button class="ghost mini" id="openSettings" title="设置">⚙ 设置</button>
+        <button class="text mini" id="openHistory" title="看过的歌单（Ctrl+H）">历史</button>
+        <button class="text mini" id="openSettings" title="设置">设置</button>
       </div>
     </header>
 
@@ -248,13 +335,14 @@
     <main>
       <section class="pane left">
         <div class="pane-bar">
-          <span class="title" id="plName">还没有歌单</span>
-          <div class="chips" id="filters">
-            <span class="chip on" data-f="all">全部</span>
-            <span class="chip" data-f="high">很确定</span>
-            <span class="chip" data-f="bi">双语</span>
-            <span class="chip" data-f="none">未找到</span>
-          </div>
+          <h1 class="title" id="plName">还没有歌单</h1>
+          <span class="meta num" id="plMeta"></span>
+        </div>
+        <div class="counts" id="filters">
+          <button class="chip on" data-f="all">全部<span class="n num" data-n="all">0</span></button>
+          <button class="chip" data-f="high">很确定<span class="n num" data-n="high">0</span></button>
+          <button class="chip" data-f="bi">双语<span class="n num" data-n="bi">0</span></button>
+          <button class="chip" data-f="none">未找到<span class="n num" data-n="none">0</span></button>
         </div>
         <div class="scroll" id="songList"></div>
       </section>
@@ -263,19 +351,19 @@
         <div class="pane-bar">
           <span class="title" id="detailTitle">候选详情</span>
           <div class="chips" id="detailTools" style="display:none">
-            <span class="chip" id="copyOne">复制此条</span>
-            <span class="chip" id="exportAll">导出全部</span>
+            <button class="text mini" id="copyOne">复制此条</button>
+            <button class="text mini" id="exportAll">导出全部</button>
           </div>
         </div>
         <div class="scroll" id="detail">
           <div class="empty-hint">
-            <div class="big">🎧</div>
+            <div class="big">还没有选中歌曲</div>
             <div>粘贴一个网易云歌单，点「开始匹配」</div>
-            <div style="font-size:11.5px;line-height:1.9">
+            <div style="font-size:12px;line-height:1.9;color:var(--faint)">
               快捷键：<kbd>↑</kbd><kbd>↓</kbd> 切换歌曲 · <kbd>Enter</kbd> 打开最佳候选<br />
               <kbd>/</kbd> 聚焦输入框 · <kbd>Ctrl</kbd>+<kbd>E</kbd> 导出结果 · <kbd>Ctrl</kbd>+<kbd>H</kbd> 看过的歌单
             </div>
-            <div style="font-size:11.5px">试试 <a href="#" data-sample="3778678">热歌榜</a> 或
+            <div style="font-size:12px;color:var(--faint)">试试 <a href="#" data-sample="3778678">热歌榜</a> 或
               <a href="#" data-sample="71385702">ACG 榜</a>（日语歌多，能看出双语效果）</div>
             <div id="recent"></div>
           </div>
@@ -345,14 +433,25 @@
       const fmtDate = (t) => { if (!t) return '—'; const d = new Date(t * 1000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
       const CONF = {
-        high: { l: '很确定', c: 'var(--success)', b: 'var(--success-soft)' },
-        medium: { l: '可能对', c: 'var(--warn)', b: 'var(--warn-soft)' },
-        low: { l: '不太确定', c: 'var(--danger)', b: 'var(--danger-soft)' },
-        error: { l: '出错', c: 'var(--danger)', b: 'var(--danger-soft)' },
-        none: { l: '没找到', c: 'var(--faint)', b: 'rgba(107,115,131,.15)' },
+        high: { l: '很确定', c: 'var(--positive)' },
+        medium: { l: '可能对', c: 'var(--warn)' },
+        low: { l: '不太确定', c: 'var(--danger)' },
+        error: { l: '出错', c: 'var(--danger)' },
+        none: { l: '没找到', c: 'var(--faint)' },
       };
-      const LANG = { zh: ['#ff8a8a', 'rgba(255,138,138,.15)'], ja: ['#7ac6ff', 'rgba(122,198,255,.15)'], ko: ['#b79bff', 'rgba(183,155,255,.15)'], en: ['#7ee3b0', 'rgba(126,227,176,.15)'] };
       const BD = { title: '歌名', artist: '歌手', duration: '时长', mv: 'MV', bilingual: '双语', play: '播放', category: '分区', officialUp: '官方' };
+      /** 得分构成画成一条尺：正值按占比分段，负值单独一段红色 */
+      function rulerHtml(b) {
+        const bd = Object.entries(b.breakdown || {}).filter(([k, v]) => BD[k] && v !== 0);
+        if (!bd.length) return '';
+        const pos = bd.filter(([, v]) => v > 0);
+        const neg = bd.filter(([, v]) => v < 0);
+        const max = Math.max(1, pos.reduce((n, [, v]) => n + v, 0));
+        const segs = pos.map(([, v], i) => `<i class="pos${i % 3 === 1 ? ' pos2' : i % 3 === 2 ? ' pos3' : ''}" style="width:${(v / max) * 100}%"></i>`).join('');
+        const negSeg = neg.length ? `<i class="neg" style="width:${Math.min(30, (Math.abs(neg.reduce((n, [, v]) => n + v, 0)) / max) * 100)}%"></i>` : '';
+        const legend = bd.map(([k, v]) => `<span>${BD[k]} <b class="${v < 0 ? 'neg' : ''}">${v > 0 ? '+' : ''}${v.toFixed(0)}</b></span>`).join('');
+        return `<div class="ruler"><div class="bar">${segs}${negSeg}</div><div class="legend">${legend}</div></div>`;
+      }
 
       /** 桌面版固定的后端地址：同源即可，无需用户配置 */
       const BASE = location.origin.startsWith('http') ? '' : 'http://127.0.0.1:8787';
@@ -413,6 +512,8 @@
         renderDetail();
         $('stTotal').textContent = '0'; $('stDone').textContent = '0'; $('stBi').textContent = '0';
         $('stMs').textContent = '—'; $('progBar').style.width = '0'; $('stMsg').textContent = '';
+        $('plMeta').textContent = '';
+        for (const el of document.querySelectorAll('#filters .n')) el.textContent = '0';
         document.querySelectorAll('footer .cont').forEach((b) => b.remove());
       }
 
@@ -460,7 +561,7 @@
           const pl = JSON.parse(e.data);
           S.playlist = pl;
           S.order = pl.tracks.map((_, i) => i);
-          $('plName').textContent = `《${pl.name}》 · ${pl.trackCount} 首`;
+          $('plName').textContent = `《${pl.name}》`;
           $('stTotal').textContent = String(pl.tracks.length);
           renderList();
         });
@@ -534,30 +635,46 @@
           switch (S.filter) {
             case 'high': return r?.confidence === 'high';
             case 'bi': return r?.bilingualNeeded && (r.best?.bilingualHit ?? 0) >= 0.6;
-            case 'none': return !r || !r.best;
+            case 'none': return Boolean(r) && !r.best;
             default: return true;
           }
         });
       }
 
+      function updateCounts() {
+        if (!S.playlist) return;
+        const rs = [...S.results.values()];
+        const n = {
+          all: S.playlist.tracks.length,
+          high: rs.filter((r) => r.confidence === 'high').length,
+          bi: rs.filter((r) => r.bilingualNeeded && (r.best?.bilingualHit ?? 0) >= 0.6).length,
+          none: rs.filter((r) => !r.best).length,
+        };
+        for (const [k, v] of Object.entries(n)) {
+          const el = document.querySelector(`#filters [data-n="${k}"]`);
+          if (el) el.textContent = String(v);
+        }
+        $('plMeta').textContent = `${S.playlist.trackCount} 首 · 已匹配 ${rs.length}`;
+      }
+
       function renderList() {
         const box = $('songList');
         if (!S.playlist) { box.innerHTML = ''; return; }
+        updateCounts();
         const idxs = visibleIndices();
         box.innerHTML = idxs.map((i) => {
           const song = S.playlist.tracks[i];
           const r = S.results.get(i);
-          const lc = LANG[r?.lang ?? song.lang] ?? ['var(--dim)', 'rgba(160,168,184,.15)'];
           const conf = CONF[r?.confidence ?? 'none'];
           const bi = r?.bilingualNeeded && (r.best?.bilingualHit ?? 0) >= 0.6;
 
           const right = r
-            ? `<span class="lang" style="color:${lc[0]};background:${lc[1]}">${esc(r.langLabel)}</span>
+            ? `<span class="lang">${esc(r.langLabel)}</span>
                <span class="dot" style="background:${conf.c}" title="${conf.l}"></span>`
             : (S.running ? '<div class="spin"></div>' : '<span class="pending">—</span>');
 
           const matched = r?.best
-            ? `<div class="m ${bi ? 'bi' : ''}" title="${esc(r.best.title)}">${bi ? '✓ ' : ''}${esc(r.best.title)}</div>`
+            ? `<div class="m ${bi ? 'bi' : ''}" title="${esc(r.best.title)}">${bi ? '双语 · ' : ''}${esc(r.best.title)}</div>`
             : (r ? '<div class="m" style="color:var(--danger)">未找到可信候选</div>' : '');
 
           return `<div class="song ${S.selected === i ? 'on' : ''}" data-i="${i}">
@@ -594,26 +711,25 @@
       function candHtml(c, rank, isBest, songIdx) {
         const bi = c.bilingualHit >= 0.6, partBi = c.bilingualHit > 0 && !bi;
         const badges = [
-          bi ? `<span class="badge" style="color:var(--success);background:var(--success-soft)">✓ 双语字幕</span>` : '',
-          partBi ? `<span class="badge" style="color:var(--warn);background:var(--warn-soft)">有字幕</span>` : '',
-          c.mvHit >= 0.9 ? `<span class="badge" style="color:var(--accent);background:var(--accent-soft)">MV</span>` : '',
-          ...(c.negativeTags || []).slice(0, 3).map((t) => `<span class="badge" style="color:var(--danger);background:var(--danger-soft)">${esc(t)}</span>`),
+          isBest ? '<span class="badge best">最佳</span>' : '',
+          bi ? '<span class="badge bi">双语字幕</span>' : '',
+          partBi ? '<span class="badge warn">有字幕</span>' : '',
+          c.mvHit >= 0.9 ? '<span class="badge">MV</span>' : '',
+          ...(c.negativeTags || []).slice(0, 2).map((t) => `<span class="badge neg">${esc(t)}</span>`),
         ].join('');
-        const bd = Object.entries(c.breakdown || {}).filter(([k, v]) => BD[k] && v !== 0)
-          .map(([k, v]) => `${BD[k]} <b style="color:${v < 0 ? 'var(--danger)' : 'var(--dim)'}">${v > 0 ? '+' + v.toFixed(0) : v.toFixed(0)}</b>`).join('　');
         return `<div class="cand ${isBest ? 'best' : ''}" data-bv="${esc(c.bvid)}" data-idx="${songIdx}">
           <img loading="lazy" src="${esc(c.cover)}" alt="" />
           <div class="body">
-            <div class="ct">${rank > 1 ? `<span style="color:var(--faint)">#${rank} </span>` : ''}${esc(c.title)}</div>
+            <div class="ct">${rank > 1 ? `<span class="rank num">${rank}</span>` : ''}${esc(c.title)}</div>
             <div class="cm">
-              <span>${esc(c.author)}</span><span>${fmtCount(c.play)} 播放</span><span>${esc(c.durationText)}</span>
-              <span>${fmtDate(c.pubdate)}</span>
+              <span>${esc(c.author)}</span><span class="num">${fmtCount(c.play)} 播放</span><span class="num">${esc(c.durationText)}</span>
+              <span class="num">${fmtDate(c.pubdate)}</span>
               <span class="score">匹配分 ${c.score.toFixed(0)}</span>
             </div>
-            <div style="display:flex;gap:5px;flex-wrap:wrap">${badges}</div>
-            ${bd ? `<div style="font-size:10.5px;color:var(--faint)">${bd}</div>` : ''}
+            ${badges ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${badges}</div>` : ''}
+            ${isBest ? rulerHtml(c) : ''}
             <div class="acts">
-              <button class="mini primary" data-open="${esc(c.url)}">▶ 在 B站 打开</button>
+              <button class="mini primary" data-open="${esc(c.url)}">在 B站 打开</button>
               <button class="mini" data-copy="${esc(c.url)}">复制链接</button>
             </div>
           </div>
@@ -626,7 +742,7 @@
         const song = S.playlist.tracks[S.selected];
         const r = S.results.get(S.selected);
 
-        $('detailTitle').textContent = song ? `${song.title} — ${song.artistText}` : '候选详情';
+        $('detailTitle').textContent = '候选与判定';
         $('detailTools').style.display = r ? '' : 'none';
 
         if (!r) {
@@ -635,7 +751,6 @@
         }
 
         const conf = CONF[r.confidence];
-        const lc = LANG[r.lang] ?? ['var(--dim)', 'rgba(160,168,184,.15)'];
         const best = r.best;
         const others = r.candidates.slice(1);
 
@@ -644,19 +759,20 @@
 
         box.innerHTML = `<div class="detail">
           <div class="d-head">
+            ${song.cover ? `<img class="d-cover" src="${esc(song.cover)}" alt="" />` : ''}
             <div style="flex:1;min-width:0">
               <div class="d-title">${esc(song.title)}</div>
               <div class="d-sub">${esc(song.artistText)}${song.album ? ' · ' + esc(song.album) : ''}${song.durationSec ? ' · ' + fmtDur(song.durationSec) : ''}</div>
               <div class="badges">
-                <span class="badge" style="color:${lc[0]};background:${lc[1]}">${esc(r.langLabel)}</span>
-                <span class="badge" style="color:${conf.c};background:${conf.b}">${conf.l}</span>
-                ${r.bilingualNeeded ? `<span class="badge" style="color:var(--accent);background:var(--accent-soft)">需要双语</span>` : ''}
-                <span class="badge" style="color:var(--faint);background:rgba(107,115,131,.15)">${r.candidates.length} 个候选</span>
+                <span class="badge">${esc(r.langLabel)}</span>
+                <span class="badge"><span class="dot" style="display:inline-block;background:${conf.c};margin-right:6px;vertical-align:1px"></span>${conf.l}</span>
+                ${r.bilingualNeeded ? '<span class="badge bi">需要双语</span>' : ''}
+                <span class="badge num">${r.candidates.length} 个候选</span>
               </div>
             </div>
           </div>
 
-          ${best ? '' : `<div style="color:var(--danger);font-size:12.5px;margin-bottom:10px">没有找到可信的 MV 候选${r.error ? '：' + esc(r.error) : ''}。可以试试下面的「补充关键词重搜」。</div>`}
+          ${best ? '' : `<div style="color:var(--danger);font-size:13px;margin-bottom:10px">没有找到可信的 MV 候选${r.error ? '：' + esc(r.error) : ''}。可以试试下面的「补充关键词重搜」。</div>`}
 
           ${best ? candHtml(best, 1, true, S.selected) : ''}
 
@@ -818,7 +934,7 @@
           </div>
           ${withActions ? `<div class="ha">
             <button class="mini" data-rematch="${esc(e.id)}" title="按当前设置重新匹配">重新匹配</button>
-            <button class="mini ghost" data-del="${esc(e.id)}" title="从历史中删除">✕</button>
+            <button class="mini text" data-del="${esc(e.id)}" title="从历史中删除">删除</button>
           </div>` : ''}
         </div>`;
       }
@@ -891,7 +1007,7 @@
         for (const r of j.results) S.results.set(r.index, r);
         S.selected = j.results.length ? j.results[0].index : null;
         $('input').value = pl.id;
-        $('plName').textContent = `《${pl.name}》 · ${pl.trackCount} 首`;
+        $('plName').textContent = `《${pl.name}》`;
         $('stTotal').textContent = String(pl.tracks.length);
         $('progBar').style.width = (pl.tracks.length ? (j.results.length / pl.tracks.length) * 100 : 0) + '%';
         $('stMsg').textContent = `来自历史记录 · ${j.preferBilingual ? '双语优先' : 'MV 优先'}`;

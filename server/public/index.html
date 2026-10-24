@@ -2,165 +2,184 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
-    <meta name="theme-color" content="#0E0F13" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
     <!-- B站 图床防盗链：带本地地址的 Referer 会 403，不带则正常返回 -->
     <meta name="referrer" content="no-referrer" />
     <title>歌单找 MV · 网易云 → B站</title>
     <style>
+      /* true-black-flat · seed 1114571870
+         与桌面版共用令牌：层次只靠明度，强调色只上数据，主操作反白。 */
       :root {
-        --bg: #0e0f13;
-        --bg-elevated: #16181f;
-        --card: #1b1e27;
-        --card-press: #232734;
-        --border: #282c38;
-        --text: #f2f4f8;
-        --dim: #a3aab8;
-        --faint: #6c7383;
-        --primary: #fb7299;
-        --primary-soft: rgba(251, 114, 153, 0.14);
-        --accent: #23ade5;
-        --accent-soft: rgba(35, 173, 229, 0.14);
-        --success: #3dd68c;
-        --success-soft: rgba(61, 214, 140, 0.14);
-        --warn: #f5a623;
-        --warn-soft: rgba(245, 166, 35, 0.14);
-        --danger: #f5544e;
-        --danger-soft: rgba(245, 84, 78, 0.14);
-        --radius: 16px;
+        --ground: #000000;
+        --surface: #111111;
+        --raised: #1a1a1a;
+        --rule: #1a1a1a;
+        --control: #2e2e2e;
+        --text: #ffffff;
+        --muted: #b4b4b4;
+        --faint: #949494;
+        --accent: #fb7299;
+        --accent-soft: rgba(251, 114, 153, 0.16);
+        --positive: #3fc07a;
+        --warn: #f2b33d;
+        --danger: #e5566f;
+        --radius-card: 8px;
+        --radius-control: 6px;
+        --radius-chip: 4px;
+        --font: "Segoe UI Variable Text", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+        --num: "Bahnschrift", "Segoe UI", "Microsoft YaHei UI", sans-serif;
       }
       * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
       html, body { margin: 0; padding: 0; }
       body {
-        background: var(--bg);
+        background: var(--ground);
         color: var(--text);
-        font: 15px/1.5 -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', Roboto, sans-serif;
+        font: 14px/1.5 var(--font);
         padding-bottom: env(safe-area-inset-bottom);
         overscroll-behavior-y: contain;
+        -webkit-font-smoothing: antialiased;
       }
-      .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px 96px; }
+      .num { font-family: var(--num); font-variant-numeric: tabular-nums; }
+      .grow { flex: 1; min-width: 0; }
+      :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+      ::selection { background: var(--accent-soft); color: var(--text); }
+      .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px 80px; }
 
-      /* ---------- header ---------- */
+      /* ---------- header：一条规则，不用毛玻璃 ---------- */
       header {
         position: sticky; top: 0; z-index: 30;
-        background: rgba(14, 15, 19, 0.92);
-        backdrop-filter: saturate(180%) blur(14px);
-        border-bottom: 1px solid var(--border);
-        padding: calc(14px + env(safe-area-inset-top)) 16px 12px;
+        background: var(--ground);
+        border-bottom: 1px solid var(--rule);
+        padding: calc(12px + env(safe-area-inset-top)) 16px 10px;
       }
       .head-inner { max-width: 760px; margin: 0 auto; display: flex; align-items: center; gap: 10px; }
-      .logo { width: 34px; height: 34px; border-radius: 11px; background: linear-gradient(135deg, var(--primary), var(--accent)); display: grid; place-items: center; font-size: 17px; flex-shrink: 0; }
-      h1 { font-size: 17px; margin: 0; font-weight: 800; letter-spacing: .2px; }
-      .sub { color: var(--faint); font-size: 11.5px; margin-top: 1px; }
-      .grow { flex: 1; min-width: 0; }
-      .status { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--dim); }
+      .logo { width: 26px; height: 26px; color: var(--accent); flex-shrink: 0; }
+      h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+      .sub { color: var(--faint); font-size: 12px; margin-top: 1px; }
+      .status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+      #statusText { display: block; max-width: 92px; overflow: hidden; text-overflow: ellipsis; }
       .status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex-shrink: 0; }
-      .status.ok .dot { background: var(--success); box-shadow: 0 0 8px var(--success); }
+      .status.ok .dot { background: var(--positive); }
       .status.fail .dot { background: var(--danger); }
 
       /* ---------- form ---------- */
-      .panel { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-top: 14px; }
-      .panel h2 { font-size: 14.5px; margin: 0 0 10px; font-weight: 700; }
+      .panel { background: var(--surface); border-radius: var(--radius-card); padding: 16px; margin-top: 12px; }
+      .panel h2 { font-size: 16px; margin: 0 0 12px; font-weight: 600; }
       .row { display: flex; gap: 8px; }
       input[type=text] {
-        flex: 1; min-width: 0; background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-        color: var(--text); font-size: 14px; padding: 12px 14px; font-family: inherit;
+        flex: 1; min-width: 0; height: 44px;
+        background: var(--raised); border: 1px solid var(--control); border-radius: var(--radius-control);
+        color: var(--text); font: inherit; font-size: 14px; padding: 0 12px; font-family: inherit;
       }
       input[type=text]::placeholder { color: var(--faint); }
-      input:focus { outline: none; border-color: var(--primary); }
+      input:focus { outline: none; border-color: var(--text); }
       button {
-        border: 1px solid var(--border); background: var(--card); color: var(--text);
-        border-radius: 12px; padding: 12px 16px; font-size: 14px; font-weight: 700;
-        font-family: inherit; cursor: pointer; white-space: nowrap; transition: transform .08s, opacity .15s;
+        min-height: 44px; padding: 0 16px;
+        background: var(--raised); color: var(--text);
+        border: 1px solid var(--control); border-radius: 999px;
+        font-size: 14px; font-weight: 600; font-family: inherit;
+        cursor: pointer; white-space: nowrap;
+        transition: background .12s, border-color .12s;
       }
-      button:active { transform: scale(.97); }
+      button:active { background: #262626; }
       button:disabled { opacity: .45; cursor: not-allowed; }
-      button.primary { background: var(--primary); border-color: var(--primary); color: #141018; }
+      button.primary { background: var(--text); border-color: var(--text); color: #000; }
       button.ghost { background: transparent; }
-      button.mini { padding: 8px 12px; font-size: 12.5px; }
+      button.mini { min-height: 36px; padding: 0 12px; font-size: 13px; font-weight: 500; }
       .samples { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-      .hint { color: var(--faint); font-size: 11.5px; line-height: 1.6; margin: 10px 0 0; }
-      .adv { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
-      .adv summary { cursor: pointer; color: var(--dim); font-size: 13px; font-weight: 600; list-style: none; }
+      .hint { color: var(--faint); font-size: 12px; line-height: 1.65; margin: 12px 0 0; }
+      .adv { margin-top: 12px; border-top: 1px solid var(--rule); padding-top: 12px; }
+      .adv summary { cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 500; list-style: none; }
       .adv summary::-webkit-details-marker { display: none; }
       .adv summary::before { content: '▸ '; color: var(--faint); }
       .adv[open] summary::before { content: '▾ '; }
-      label.check { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 13px; color: var(--dim); cursor: pointer; }
-      label.check input { width: 18px; height: 18px; accent-color: var(--primary); }
+      label.check { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 13px; color: var(--muted); cursor: pointer; }
+      label.check input { width: 18px; height: 18px; accent-color: var(--text); }
 
       /* ---------- progress ---------- */
-      .prog { margin-top: 14px; }
-      .prog-top { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--dim); margin-bottom: 8px; font-weight: 600; }
-      .bar { height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; }
-      .bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--primary), var(--accent)); border-radius: 99px; transition: width .35s ease; }
+      .prog { margin-top: 16px; }
+      .prog-top { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--muted); margin-bottom: 8px; font-weight: 500; }
+      .prog-top .num { font-size: 12px; color: var(--faint); }
+      .bar { height: 2px; background: var(--raised); overflow: hidden; }
+      .bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .35s ease; }
 
       /* ---------- results ---------- */
-      .list { margin-top: 14px; display: flex; flex-direction: column; gap: 12px; }
-      .song { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 20px; padding: 13px; }
-      .song-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-      .idx { color: var(--faint); font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 20px; }
-      .song-title { font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .song-sub { color: var(--faint); font-size: 11.5px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .tags { display: flex; gap: 4px; flex-wrap: wrap; }
-      .tag { font-size: 10.5px; font-weight: 800; padding: 3px 8px; border-radius: 99px; white-space: nowrap; }
-      .cand { display: flex; gap: 11px; background: var(--card); border-radius: 12px; padding: 9px; cursor: pointer; transition: background .15s; }
-      .cand:active { background: var(--card-press); }
-      .thumb { position: relative; width: 106px; height: 66px; border-radius: 8px; overflow: hidden; background: var(--bg); flex-shrink: 0; }
+      .list { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+      .song { background: var(--surface); border-radius: var(--radius-card); padding: 14px; }
+      .song-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+      .idx { color: var(--faint); font-family: var(--num); font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 600; min-width: 18px; }
+      .song-title { font-size: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: -0.01em; }
+      .song-sub { color: var(--faint); font-size: 12px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+      .tag { font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: var(--radius-chip); white-space: nowrap; }
+      .cand { display: flex; gap: 12px; background: var(--raised); border-radius: var(--radius-card); padding: 10px; cursor: pointer; }
+      .cand:active { background: #222222; }
+      .thumb { position: relative; width: 106px; height: 66px; border-radius: var(--radius-chip); overflow: hidden; background: var(--surface); flex-shrink: 0; }
       .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-      .dur { position: absolute; right: 3px; bottom: 3px; background: rgba(0,0,0,.75); color: #fff; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; }
-      .cand-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-      .cand-title { font-size: 13.5px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-      .cand-meta { color: var(--faint); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .score { font-size: 10.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
-      .score b { color: var(--dim); font-weight: 700; }
-      .reasons { color: var(--dim); font-size: 11.5px; line-height: 1.5; margin-top: 9px; padding: 0 2px; }
+      .dur { position: absolute; right: 3px; bottom: 3px; background: rgba(0,0,0,.78); color: #fff; font-family: var(--num); font-variant-numeric: tabular-nums; font-size: 11px; font-weight: 600; padding: 1px 5px; border-radius: 3px; }
+      .cand-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+      .cand-title { font-size: 14px; font-weight: 600; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+      .cand-meta { color: var(--faint); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .score { font-size: 12px; color: var(--faint); }
+      .score b { color: var(--muted); font-family: var(--num); font-variant-numeric: tabular-nums; font-weight: 600; }
+      .reasons { color: var(--muted); font-size: 13px; line-height: 1.6; margin-top: 10px; padding: 0 2px; }
       .acts { display: flex; gap: 8px; margin-top: 10px; }
       .acts button { flex: 1; }
+      .acts button.primary { flex: 1.3; }
       .more { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
-      .none { color: var(--faint); font-size: 12.5px; text-align: center; padding: 16px 0; }
+      .none { color: var(--faint); font-size: 13px; text-align: center; padding: 16px 0; }
 
       /* ---------- sheet ---------- */
-      .sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 50; display: none; }
+      .sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.66); z-index: 50; display: none; }
       .sheet-bg.on { display: block; }
-      .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 51; background: var(--bg-elevated); border-radius: 22px 22px 0 0; max-height: 88vh; overflow-y: auto; padding: 10px 16px calc(20px + env(safe-area-inset-bottom)); transform: translateY(101%); transition: transform .28s cubic-bezier(.32,.72,0,1); }
+      .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 51; background: var(--surface); border-radius: 12px 12px 0 0; max-height: 88vh; overflow-y: auto; padding: 12px 16px calc(20px + env(safe-area-inset-bottom)); transform: translateY(101%); transition: transform .28s cubic-bezier(.32,.72,0,1); }
       .sheet.on { transform: translateY(0); }
-      .sheet .handle { width: 38px; height: 4px; border-radius: 2px; background: var(--border); margin: 0 auto 14px; }
-      .sheet h3 { font-size: 16px; margin: 0 0 10px; line-height: 1.4; }
-      .sheet img.big { width: 100%; border-radius: 12px; background: var(--card); display: block; margin: 10px 0; }
-      .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
-      .kv div { font-size: 12px; }
-      .kv .k { color: var(--faint); font-weight: 700; font-size: 11px; }
-      .kv .v { color: var(--text); word-break: break-all; }
-      .blk { background: var(--card); border-radius: 12px; padding: 12px; margin-top: 12px; }
-      .blk .t { color: var(--dim); font-size: 11.5px; font-weight: 800; margin-bottom: 6px; }
-      .blk p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--text); }
-      .blk ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.65; }
+      .sheet .handle { width: 36px; height: 3px; border-radius: 2px; background: var(--control); margin: 0 auto 14px; }
+      .sheet h3 { font-size: 18px; margin: 0 0 10px; line-height: 1.4; font-weight: 600; letter-spacing: -0.01em; }
+      .sheet img.big { width: 100%; border-radius: var(--radius-card); background: var(--raised); display: block; margin: 10px 0; }
+      .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+      .kv div { font-size: 13px; }
+      .kv .k { color: var(--faint); font-weight: 500; font-size: 12px; }
+      .kv .v { color: var(--text); word-break: break-all; font-variant-numeric: tabular-nums; }
+      .blk { background: var(--raised); border-radius: var(--radius-card); padding: 12px; margin-top: 12px; }
+      .blk .t { color: var(--muted); font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+      .blk p { margin: 0; font-size: 13px; line-height: 1.65; color: var(--text); }
+      .blk ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.7; }
 
       /* ---------- history ---------- */
-      .panel h2 .cnt { color: var(--faint); font-weight: 500; font-size: 12px; }
+      .panel h2 .cnt { color: var(--faint); font-weight: 400; font-size: 12px; }
       .hist-list { display: flex; flex-direction: column; margin-top: 8px; }
-      .hist { display: flex; align-items: center; gap: 10px; padding: 9px 2px; border-top: 1px solid var(--border); cursor: pointer; }
+      .hist { display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-top: 1px solid var(--rule); cursor: pointer; }
       .hist:first-child { border-top: 0; }
-      .hist img { width: 42px; height: 42px; border-radius: 9px; object-fit: cover; background: var(--card); flex-shrink: 0; }
-      .hist .hn { font-size: 13.5px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .hist .hm { font-size: 11px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
-      .hist .hm b { color: var(--success); font-weight: 600; }
-      .hist .del { padding: 6px 10px; font-size: 12px; color: var(--faint); border-color: transparent; background: transparent; }
+      .hist img { width: 40px; height: 40px; border-radius: var(--radius-chip); object-fit: cover; background: var(--raised); flex-shrink: 0; }
+      .hist .hn { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .hist .hm { font-size: 12px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
+      .hist .hm b { color: var(--accent); font-weight: 600; }
+      .hist .del { min-height: 36px; padding: 0 10px; font-size: 13px; color: var(--faint); border-color: transparent; background: transparent; }
 
-      .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: 34px; z-index: 80; background: rgba(20,22,28,.96); border: 1px solid var(--border); border-radius: 99px; padding: 10px 20px; font-size: 13px; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity .2s, bottom .2s; }
-      .toast.on { opacity: 1; bottom: 42px; }
-      .foot { text-align: center; color: var(--faint); font-size: 11px; margin-top: 22px; line-height: 1.7; }
-      a { color: var(--accent); }
-      @media (max-width: 380px) { .thumb { width: 88px; height: 56px; } }
-    </style>
+      .foot { color: var(--faint); font-size: 12px; line-height: 1.7; text-align: center; margin-top: 28px; }
+      .foot code { font-family: var(--num); color: var(--muted); font-size: 12px; }
+
+      .toast {
+        position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px);
+        background: var(--raised); border-radius: var(--radius-control);
+        padding: 10px 18px; font-size: 13px; font-weight: 500; color: var(--text);
+        opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; z-index: 90;
+      }
+      .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+      a { color: var(--text); }
+      @media (min-width: 640px) { .thumb { width: 128px; height: 80px; } }
+      @media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+</style>
   </head>
   <body>
     <header>
       <div class="head-inner">
-        <div class="logo">🎬</div>
+        <svg class="logo" viewBox="0 0 28 28" aria-hidden="true"><rect x="2" y="10" width="4" height="8" rx="1" fill="currentColor" opacity=".45"/><rect x="9" y="5" width="4" height="18" rx="1" fill="currentColor" opacity=".7"/><path d="M17 8l8 6-8 6z" fill="currentColor"/></svg>
         <div class="grow">
           <h1>歌单找 MV</h1>
-          <div class="sub">网易云歌单 → B站 官方 MV · 外语歌优先双语字幕</div>
+          <div class="sub">网易云 → B站 MV · 优先双语字幕</div>
         </div>
         <div class="status" id="status"><span class="dot"></span><span id="statusText">检测中</span></div>
       </div>
@@ -187,7 +206,7 @@
           </label>
           <div class="row" style="margin-top:12px;align-items:center;gap:10px">
             <span class="hint" style="margin:0">每批匹配</span>
-            <select id="pageSize" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-family:inherit;font-size:13px">
+            <select id="pageSize" style="background:var(--raised);color:var(--text);border:1px solid var(--control);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:13px">
               <option>10</option><option selected>20</option><option>30</option><option>50</option>
             </select>
             <button class="mini ghost" id="clearCache">清空服务端缓存</button>
@@ -229,13 +248,14 @@
       const fmtDate = (t) => { if (!t) return '—'; const d = new Date(t * 1000); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
       const CONF = {
-        high: { l: '很确定', c: 'var(--success)', b: 'var(--success-soft)' },
-        medium: { l: '可能对', c: 'var(--warn)', b: 'var(--warn-soft)' },
-        low: { l: '不太确定', c: 'var(--danger)', b: 'var(--danger-soft)' },
-        error: { l: '出错', c: 'var(--danger)', b: 'var(--danger-soft)' },
-        none: { l: '没找到', c: 'var(--faint)', b: 'rgba(108,115,131,.14)' },
+        high: { l: '很确定', c: 'var(--positive)', b: 'rgba(63,192,122,.14)' },
+        medium: { l: '可能对', c: 'var(--warn)', b: 'rgba(242,179,61,.14)' },
+        low: { l: '不太确定', c: 'var(--danger)', b: 'rgba(229,86,111,.14)' },
+        error: { l: '出错', c: 'var(--danger)', b: 'rgba(229,86,111,.14)' },
+        none: { l: '没找到', c: 'var(--faint)', b: 'transparent' },
       };
-      const LANGC = { zh: ['#FF7A7A', 'rgba(255,122,122,.15)'], ja: ['#7AC6FF', 'rgba(122,198,255,.15)'], ko: ['#B79BFF', 'rgba(183,155,255,.15)'], en: ['#7EE3B0', 'rgba(126,227,176,.15)'] };
+      const NEUTRAL_TAG = 'var(--faint)';
+      const NEUTRAL_BG = 'var(--raised)';
       const BD = { title: '歌名', artist: '歌手', duration: '时长', mv: 'MV', bilingual: '双语', play: '播放', category: '分区', officialUp: '官方' };
 
       $('origin').textContent = location.origin;
@@ -298,6 +318,7 @@
         es.addEventListener('done', (e) => {
           const d = JSON.parse(e.data);
           $('progBar').style.width = '100%';
+          $('progText').textContent = `《${playlistRef?.name ?? ''}》 · 已完成`;
           $('progMeta').textContent = `用时 ${(d.elapsedMs / 1000).toFixed(1)}s`;
           $('more').style.display = d.hasMore ? 'block' : 'none';
           $('moreBtn').textContent = `继续匹配后面 ${Math.min(Number($('pageSize').value), Math.max((playlistRef?.trackCount ?? 0) - results.length, 0))} 首`;
@@ -359,7 +380,7 @@
               <div class="hn">${esc(e.name)}</div>
               <div class="hm">${e.trackCount} 首 · 已匹配 ${e.matched}${e.bilingualNeeded ? ` · 双语 <b>${e.bilingualHit}</b>/${e.bilingualNeeded}` : ''} · ${fmtAgo(e.lastViewedAt)}</div>
             </div>
-            <button class="del" data-del="${esc(e.id)}" aria-label="删除">✕</button>
+            <button class="del" data-del="${esc(e.id)}" aria-label="删除">删除</button>
           </div>`).join('') : '<p class="hint" style="text-align:center">没有符合的歌单</p>';
         $('histList').querySelectorAll('.hist').forEach((n) => {
           n.onclick = (ev) => {
@@ -418,7 +439,6 @@
         const n = el('div', 'song');
         n.dataset.index = r.index;
         const conf = CONF[r.confidence] ?? CONF.none;
-        const lc = LANGC[r.lang] ?? ['var(--dim)', 'rgba(163,170,184,.15)'];
         const b = r.best;
 
         const head = el('div', 'song-head');
@@ -427,7 +447,7 @@
         mid.appendChild(el('div', 'song-title', esc(r.song.title)));
         mid.appendChild(el('div', 'song-sub', esc(r.song.artistText + (r.song.durationSec ? ' · ' + fmtDur(r.song.durationSec) : ''))));
         head.appendChild(mid);
-        head.appendChild(el('div', 'tags', tag(r.langLabel, lc[0], lc[1]) + tag(conf.l, conf.c, conf.b)));
+        head.appendChild(el('div', 'tags', tag(r.langLabel, NEUTRAL_TAG, NEUTRAL_BG) + tag(conf.l, conf.c, conf.b)));
         n.appendChild(head);
 
         if (!b) {
@@ -442,9 +462,9 @@
             <div class="cand-title">${esc(b.title)}</div>
             <div class="cand-meta">${esc(b.author)} · ${fmtCount(b.play)}播放</div>
             <div class="tags">
-              ${r.bilingualNeeded ? (b.bilingualHit >= 0.6 ? tag('✓ 双语字幕', 'var(--success)', 'var(--success-soft)') : b.bilingualHit > 0 ? tag('有字幕', 'var(--warn)', 'var(--warn-soft)') : tag('无字幕', 'var(--faint)', 'rgba(108,115,131,.15)')) : ''}
-              ${b.mvHit >= 0.9 ? tag('MV', 'var(--accent)', 'var(--accent-soft)') : ''}
-              ${(b.negativeTags || []).slice(0, 2).map((t) => tag(t, 'var(--danger)', 'var(--danger-soft)')).join('')}
+              ${r.bilingualNeeded ? (b.bilingualHit >= 0.6 ? tag('双语字幕', 'var(--accent)', 'var(--accent-soft)') : b.bilingualHit > 0 ? tag('有字幕', 'var(--warn)', 'rgba(242,179,61,.14)') : tag('无字幕', 'var(--faint)', 'transparent')) : ''}
+              ${b.mvHit >= 0.9 ? tag('MV', 'var(--muted)', NEUTRAL_BG) : ''}
+              ${(b.negativeTags || []).slice(0, 2).map((t) => tag(t, 'var(--danger)', 'transparent')).join('')}
             </div>
           </div>`;
         cand.onclick = () => openSheet(b, r.song);
@@ -452,13 +472,13 @@
 
         if (b.breakdown) {
           const parts = Object.entries(b.breakdown).filter(([k, v]) => BD[k] && v !== 0)
-            .map(([k, v]) => `${BD[k]} <b style="color:${v < 0 ? 'var(--danger)' : 'var(--text)'}">${v > 0 ? '+' + v.toFixed(0) : v.toFixed(0)}</b>`);
+            .map(([k, v]) => `${BD[k]} <b style="color:${v < 0 ? 'var(--danger)' : 'var(--muted)'}">${v > 0 ? '+' + v.toFixed(0) : v.toFixed(0)}</b>`);
           if (parts.length) n.appendChild(el('div', 'score', parts.join('　')));
         }
         if (b.reasons?.length) n.appendChild(el('div', 'reasons', esc(b.reasons.slice(0, 4).join(' · '))));
 
         const acts = el('div', 'acts');
-        const play = el('button', 'primary', '▶ 在 B站 打开');
+        const play = el('button', 'primary', '在 B站 打开');
         play.onclick = () => window.open(b.url, '_blank', 'noopener');
         acts.appendChild(play);
 
@@ -476,7 +496,7 @@
                   <div class="cand-body">
                     <div class="cand-title">${esc(c.title)}</div>
                     <div class="cand-meta">#${i + 2} · ${esc(c.author)} · ${fmtCount(c.play)}播放 · 匹配分 ${c.score.toFixed(0)}</div>
-                    <div class="tags">${c.bilingualHit >= 0.6 ? tag('双语字幕', 'var(--success)', 'var(--success-soft)') : ''}${c.mvHit >= 0.9 ? tag('MV', 'var(--accent)', 'var(--accent-soft)') : ''}${(c.negativeTags || []).slice(0, 2).map((t) => tag(t, 'var(--danger)', 'var(--danger-soft)')).join('')}</div>
+                    <div class="tags">${c.bilingualHit >= 0.6 ? tag('双语字幕', 'var(--accent)', 'var(--accent-soft)') : ''}${c.mvHit >= 0.9 ? tag('MV', 'var(--muted)', NEUTRAL_BG) : ''}${(c.negativeTags || []).slice(0, 2).map((t) => tag(t, 'var(--danger)', 'transparent')).join('')}</div>
                   </div>`;
                 cc.onclick = () => openSheet(c, r.song);
                 more.appendChild(cc);
@@ -502,9 +522,9 @@
           <h3>${esc(c.title)}</h3>
           <div class="tags">
             ${tag(conf.l, conf.c, conf.b)}
-            ${tag('匹配分 ' + c.score.toFixed(0), 'var(--text)', 'rgba(255,255,255,.09)')}
-            ${c.bilingualHit >= 0.6 ? tag('双语字幕', 'var(--success)', 'var(--success-soft)') : ''}
-            ${c.mvHit >= 0.9 ? tag('MV', 'var(--accent)', 'var(--accent-soft)') : ''}
+            ${tag('匹配分 ' + c.score.toFixed(0), 'var(--muted)', NEUTRAL_BG)}
+            ${c.bilingualHit >= 0.6 ? tag('双语字幕', 'var(--accent)', 'var(--accent-soft)') : ''}
+            ${c.mvHit >= 0.9 ? tag('MV', 'var(--muted)', NEUTRAL_BG) : ''}
           </div>
           <img class="big" src="${esc(c.cover)}" alt="" />
           <div class="kv">
@@ -520,7 +540,7 @@
           ${c.negativeTags?.length ? `<div class="blk"><div class="t">已识别的减分特征</div><p>${esc(c.negativeTags.join('、'))}</p></div>` : ''}
           ${c.description ? `<div class="blk"><div class="t">视频简介</div><p>${esc(c.description.slice(0, 400))}</p></div>` : ''}
           <div class="row" style="margin-top:14px">
-            <button class="primary" style="flex:1.4" onclick="window.open('${esc(c.url)}','_blank','noopener')">▶ 在 B站 打开</button>
+            <button class="primary" style="flex:1.4" onclick="window.open('${esc(c.url)}','_blank','noopener')">在 B站 打开</button>
             <button style="flex:1" id="copyLink">复制链接</button>
           </div>
           <button class="ghost" style="width:100%;margin-top:8px" id="closeSheet">关闭</button>`;
