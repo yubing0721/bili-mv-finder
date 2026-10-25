@@ -1,6 +1,6 @@
 {
   "name": "bili-mv-finder-desktop",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "private": true,
   "description": "寻影姬 BiliTune · Windows 桌面版（Electron）",
   "main": "main.js",
