@@ -279,7 +279,7 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, {
         ok: true,
         service: 'bili-mv-finder',
-        version: '1.0.0',
+        version: '1.0.4',
         bili: { ...bili.stats, sessionReady: bili.sessionReady, hasBuvid3: bili.jar.has('buvid3') },
         cache: cache.stats(),
         time: Date.now(),
@@ -348,6 +348,35 @@ const server = http.createServer(async (req, res) => {
         best: r.best ? publicCandidate(r.best) : null,
         candidates: r.candidates.map(publicCandidate),
         maxScore: maxScoreFor(r.lang, preferBilingual),
+      });
+    }
+
+    // ---- 直接搜 B站 MV（不需要歌单；多路检索 + 重排）----
+    if (p === '/api/search/mv') {
+      const title = (url.searchParams.get('title') ?? '').trim();
+      if (!title) return sendJSON(res, 400, { error: '缺少 title 参数' });
+      const artists = (url.searchParams.get('artist') ?? '').split(/[/,、]/).map((s) => s.trim()).filter(Boolean);
+      const lang = url.searchParams.get('lang') ?? undefined;
+      const preferBilingual = url.searchParams.get('preferBilingual') !== '0';
+      const key = `search-mv:v1:${title}:${artists.join(',')}:${lang ?? 'auto'}:${preferBilingual ? 'b' : 'n'}`;
+      const r = await cache.wrap(key, () => {
+        const song = {
+          id: 'manual',
+          title,
+          artists,
+          artistText: artists.join(' / ') || title,
+          aliases: [],
+          durationSec: null,
+          artistAliases: [],
+        };
+        return matchSong(bili, song, { preferBilingual, lang, topN: 14 });
+      });
+      return sendJSON(res, 200, {
+        lang: r.lang,
+        langLabel: LANG_LABEL[r.lang],
+        best: r.best ? publicCandidate(r.best) : null,
+        candidates: r.candidates.map(publicCandidate),
+        maxScore: r.meta.maxScore,
       });
     }
 

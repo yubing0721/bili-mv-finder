@@ -290,6 +290,43 @@
       .hist .ha { display: flex; gap: 4px; opacity: 0; transition: opacity .12s; }
       .hist:hover .ha { opacity: 1; }
       .hist-empty { color: var(--faint); text-align: center; padding: 28px 0; font-size: 13px; }
+
+      /* ---------- 直接搜 MV ---------- */
+      .mv-box { display: flex; flex-direction: column; max-height: 88vh; }
+      .mv-form { display: flex; gap: 8px; }
+      .mv-form input { flex: 1; min-width: 0; }
+      .mv-form input#mvA { flex: 0 0 170px; }
+      .mv-form button { flex: 0 0 auto; }
+      .mv-quick { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+      .mv-quick button {
+        font-size: 12px; color: var(--muted); background: var(--surface);
+        border: 1px solid var(--rule); border-radius: var(--radius-chip); padding: 4px 9px;
+      }
+      .mv-quick button:hover { background: var(--raised); color: var(--text); }
+      .mv-history { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+      .mv-history-label { font-size: 12px; color: var(--faint); }
+      .mv-hist-chip {
+        height: 28px; padding: 0 10px; font-size: 12px; font-weight: 500;
+        color: var(--muted); background: var(--surface); border: 1px solid var(--rule); border-radius: 999px;
+      }
+      .mv-hist-chip:hover { color: var(--text); background: var(--raised); }
+      .mv-hist-clear {
+        height: 28px; padding: 0 6px; border: none; background: transparent;
+        color: var(--faint); font-size: 12px; font-weight: 500;
+      }
+      .mv-hist-clear:hover { color: var(--text); background: transparent; }
+      .mv-hint { margin-top: 10px; }
+      .mv-meta { margin-top: 12px; font-size: 12px; color: var(--faint); min-height: 16px; }
+      .mv-results { min-height: 120px; max-height: 48vh; overflow-y: auto; margin: 8px -6px 0; padding: 2px 6px; }
+      .mv-empty {
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+        color: var(--faint); font-size: 13px; padding: 36px 0; text-align: center;
+      }
+      @media (max-width: 720px) {
+        .mv-form { flex-wrap: wrap; }
+        .mv-form input, .mv-form input#mvA { flex: 1 1 100%; }
+        .mv-form button { width: 100%; }
+      }
       #recent { width: 380px; max-width: 84%; margin-top: 8px; }
       #recent .hist { padding: 8px 6px; }
       #recent .hist img { width: 32px; height: 32px; }
@@ -356,6 +393,7 @@
       <div class="right">
         <div class="conn" id="conn"><i></i><span id="connText">检测中…</span></div>
         <button class="text mini" id="prefToggle">双语优先</button>
+        <button class="text mini" id="openMvSearch" title="不经过歌单，直接搜 B站 MV">搜 MV</button>
         <button class="text mini" id="openHistory" title="看过的歌单（Ctrl+H）">历史</button>
         <button class="text mini" id="openSettings" title="设置">设置</button>
         <div class="more-wrap">
@@ -409,6 +447,7 @@
             </div>
             <div style="font-size:12px;color:var(--faint)">试试 <a href="#" data-sample="3778678">热歌榜</a> 或
               <a href="#" data-sample="71385702">ACG 榜</a>（日语歌多，能看出双语效果）</div>
+            <div style="font-size:12px;color:var(--faint)">没有歌单？<a href="#" id="emptyMvSearch">直接搜 B站 MV</a></div>
             <div id="recent"></div>
           </div>
         </div>
@@ -452,6 +491,32 @@
     </div>
 
     <div class="toast" id="toast"></div>
+
+    <!-- ══════ 直接搜 MV 弹窗 ══════ -->
+    <div class="modal" id="mvSearch">
+      <div class="box wide mv-box">
+        <h2>直接搜 B站 MV</h2>
+        <div class="mv-form">
+          <input type="text" id="mvQ" placeholder="歌名 / 关键词，例如 Lemon" autocomplete="off" spellcheck="false" />
+          <input type="text" id="mvA" placeholder="歌手（可选）" autocomplete="off" spellcheck="false" />
+          <button class="primary" id="mvGo">搜 MV</button>
+        </div>
+        <div class="mv-quick">
+          <button data-q="Lemon" data-a="米津玄師">Lemon · 米津玄師</button>
+          <button data-q="晴天" data-a="周杰伦">晴天 · 周杰伦</button>
+          <button data-q="夜に駆ける" data-a="YOASOBI">夜に駆ける · YOASOBI</button>
+        </div>
+        <div class="mv-history" id="mvHistory" style="display:none"></div>
+        <div class="hint mv-hint">直接检索 B站公开视频；和批量匹配同一套重排，优先 MV、官方账号与双语字幕。</div>
+        <div class="mv-meta" id="mvMeta"></div>
+        <div class="mv-results" id="mvResults">
+          <div class="mv-empty">输入歌名和歌手开始搜索</div>
+        </div>
+        <div class="row">
+          <button class="ghost" id="mvClose">关闭</button>
+        </div>
+      </div>
+    </div>
 
     <!-- ══════ 历史弹窗 ══════ -->
     <div class="modal" id="history">
@@ -727,7 +792,8 @@
       /** 返回按钮与鼠标侧键共用同一个动作 */
       function updateBackBtn() {
         const active = Boolean(S.playlist) || S.running ||
-          $('settings').classList.contains('on') || $('history').classList.contains('on');
+          $('settings').classList.contains('on') || $('history').classList.contains('on') ||
+          $('mvSearch').classList.contains('on');
         $('backBtn').disabled = !active;
       }
       $('backBtn').onclick = () => window.__appBack?.();
@@ -761,6 +827,20 @@
       $('goAll').onclick = () => start(undefined, true);
       $('stop').onclick = () => { S.auto = false; finish(); $('stMsg').textContent = '已停止'; };
       $('input').addEventListener('keydown', (e) => { if (e.key === 'Enter') start(); });
+
+      $('openMvSearch').onclick = openMvSearch;
+      $('mvClose').onclick = closeMvSearch;
+      $('mvGo').onclick = runMvSearch;
+      $('mvQ').addEventListener('keydown', (e) => { if (e.key === 'Enter') runMvSearch(); });
+      $('mvA').addEventListener('keydown', (e) => { if (e.key === 'Enter') runMvSearch(); });
+      document.querySelectorAll('.mv-quick button').forEach((b) => {
+        b.onclick = () => { $('mvQ').value = b.dataset.q; $('mvA').value = b.dataset.a; runMvSearch(); };
+      });
+      $('emptyMvSearch').onclick = (e) => { e.preventDefault(); openMvSearch(); };
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && $('mvSearch').classList.contains('on')) closeMvSearch();
+      });
+
       function bindSamples() {
         document.querySelectorAll('[data-sample]').forEach((a) => {
           a.onclick = (e) => { e.preventDefault(); $('input').value = a.dataset.sample; start(a.dataset.sample); };
@@ -771,6 +851,7 @@
       /** 鼠标侧键/应用内返回：先关弹窗，否则回到“选择歌单”的初始界面 */
       const EMPTY_DETAIL = $('detail').innerHTML;
       window.__appBack = () => {
+        if ($('mvSearch').classList.contains('on')) { closeMvSearch(); return 'modal'; }
         if ($('settings').classList.contains('on')) { $('settings').classList.remove('on'); updateBackBtn(); return 'modal'; }
         if ($('history').classList.contains('on')) { closeHistory(); return 'modal'; }
         S.auto = false;
@@ -1011,6 +1092,125 @@
           toast('重搜失败：' + e.message);
           renderDetail();
         }
+      }
+
+      /* ═══════════════════════════════════════════════════════════
+         直接搜 B站 MV
+         ═══════════════════════════════════════════════════════════ */
+      const MV_HISTORY_KEY = 'bmf:mvSearchHistory';
+
+      function mvHistoryList() {
+        try {
+          const list = JSON.parse(localStorage.getItem(MV_HISTORY_KEY) || '[]');
+          return Array.isArray(list)
+            ? list.filter((x) => x && String(x.title || '').trim()).slice(0, 20)
+            : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function rememberMvSearch(title, artist) {
+        const norm = (s) => String(s || '').trim().toLowerCase();
+        const item = { title: String(title).trim(), artist: String(artist || '').trim(), at: Date.now() };
+        const next = [
+          item,
+          ...mvHistoryList().filter((x) => !(norm(x.title) === norm(item.title) && norm(x.artist) === norm(item.artist))),
+        ].slice(0, 20);
+        try { localStorage.setItem(MV_HISTORY_KEY, JSON.stringify(next)); } catch {}
+        renderMvHistory();
+      }
+
+      function renderMvHistory() {
+        const list = mvHistoryList().slice(0, 6);
+        const quick = document.querySelector('.mv-quick');
+        if (quick) quick.style.display = list.length ? 'none' : '';
+        const box = $('mvHistory');
+        if (!list.length) {
+          box.style.display = 'none';
+          box.innerHTML = '';
+          return;
+        }
+        box.style.display = '';
+        box.innerHTML = '<span class="mv-history-label">最近搜索</span>'
+          + list.map((x, i) => `<button class="mv-hist-chip" data-hist="${i}">${esc(x.title)}${x.artist ? ' · ' + esc(x.artist) : ''}</button>`).join('')
+          + '<button class="mv-hist-clear" id="mvHistClear">清空</button>';
+        box.querySelectorAll('[data-hist]').forEach((b) => {
+          b.onclick = () => {
+            const x = list[Number(b.dataset.hist)];
+            $('mvQ').value = x.title;
+            $('mvA').value = x.artist || '';
+            runMvSearch();
+          };
+        });
+        $('mvHistClear').onclick = () => {
+          try { localStorage.removeItem(MV_HISTORY_KEY); } catch {}
+          renderMvHistory();
+          toast('搜索历史已清空');
+        };
+      }
+
+      function openMvSearch() {
+        $('mvSearch').classList.add('on');
+        updateBackBtn();
+        renderMvHistory();
+        setTimeout(() => $('mvQ').focus(), 0);
+      }
+      function closeMvSearch() {
+        $('mvSearch').classList.remove('on');
+        updateBackBtn();
+      }
+
+      async function runMvSearch() {
+        const title = $('mvQ').value.trim();
+        const artist = $('mvA').value.trim();
+        if (!title) { toast('请输入歌名或关键词'); $('mvQ').focus(); return; }
+        $('mvMeta').textContent = '';
+        $('mvResults').innerHTML = '<div class="mv-empty"><span class="spin"></span> 正在检索 B站…</div>';
+        $('mvGo').disabled = true;
+        const qs = new URLSearchParams({
+          title,
+          artist,
+          preferBilingual: S.prefs.preferBilingual ? '1' : '0',
+        });
+        try {
+          const res = await fetch(api('/api/search/mv?' + qs.toString()));
+          const j = await res.json();
+          if (!res.ok) throw new Error(j.error || 'HTTP ' + res.status);
+          renderMvResults(j);
+          rememberMvSearch(title, artist);
+        } catch (e) {
+          $('mvResults').innerHTML = `<div class="mv-empty">搜索失败：${esc(e.message)}</div>`;
+          toast('搜索失败：' + e.message);
+        } finally {
+          $('mvGo').disabled = false;
+        }
+      }
+
+      function renderMvResults(j) {
+        const list = j.candidates || [];
+        $('mvMeta').textContent = list.length
+          ? `找到 ${list.length} 个候选${j.langLabel ? ' · ' + j.langLabel : ''}`
+          : '没有找到候选';
+        if (!list.length) {
+          $('mvResults').innerHTML = '<div class="mv-empty">换个关键词，或补充歌手名后再试</div>';
+          return;
+        }
+        $('mvResults').innerHTML = list.map((c, i) => candHtml(c, i + 1, i === 0, '')).join('');
+        const box = $('mvResults');
+        box.querySelectorAll('[data-open]').forEach((b) => {
+          b.onclick = (e) => { e.stopPropagation(); window.open(b.dataset.open, '_blank', 'noopener'); };
+        });
+        box.querySelectorAll('[data-copy]').forEach((b) => {
+          b.onclick = async (e) => {
+            e.stopPropagation();
+            try { await navigator.clipboard.writeText(b.dataset.copy); toast('链接已复制'); }
+            catch { toast('复制失败'); }
+          };
+        });
+        box.querySelectorAll('.cand').forEach((c) => {
+          c.onclick = () => window.open(`https://www.bilibili.com/video/${c.dataset.bv}`, '_blank', 'noopener');
+        });
       }
 
       /* ═══════════════════════════════════════════════════════════
